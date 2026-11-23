@@ -77,21 +77,6 @@ npm run dev
 
 ---
 
-## 👥 Demo & Test Accounts
-
-The seed command creates the following test accounts:
-
-| Username | Password | Role / Profile |
-| :--- | :--- | :--- |
-| `admin` | `admin123` | Platform Superuser & Moderator |
-| `rahul_verma` | `password123` | Software Engineer (New Delhi) — 210 Rep |
-| `arjun_sharma` | `password123` | Urban Planner (Bangalore) — 145 Rep |
-| `vikram_singh` | `password123` | Resident Council Member (Jaipur) — 130 Rep |
-| `priya_patel` | `password123` | Environmental Activist (Mumbai) — 95 Rep |
-| `ananya_deshmukh` | `password123` | Architecture Student (Pune) — 60 Rep |
-
----
-
 ## 📁 Repository Structure
 
 ```
