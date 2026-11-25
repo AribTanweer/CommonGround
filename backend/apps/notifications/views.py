@@ -26,9 +26,16 @@ class MarkNotificationsReadView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        ids = request.data.get("ids", None)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        single_id = serializer.validated_data.get("id")
+        ids = serializer.validated_data.get("ids")
+
         qs = Notification.objects.filter(recipient=request.user, is_read=False)
-        if ids and isinstance(ids, list):
+        if single_id is not None:
+            qs = qs.filter(id=single_id)
+        elif ids is not None:
             qs = qs.filter(id__in=ids)
         updated_count = qs.update(is_read=True)
         return Response(

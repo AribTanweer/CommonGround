@@ -79,7 +79,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <p className="text-3xl font-extrabold text-foreground">
-            <ImpactCounter value={stats?.total_challenges || 142} />
+            <ImpactCounter value={stats?.total_challenges ?? 142} />
           </p>
           <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
             ↑ 18% from last month
@@ -94,7 +94,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <p className="text-3xl font-extrabold text-foreground">
-            <ImpactCounter value={stats?.total_solutions || 389} />
+            <ImpactCounter value={stats?.total_solutions ?? 389} />
           </p>
           <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
             ↑ 2.7 proposals/challenge
@@ -109,7 +109,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <p className="text-3xl font-extrabold text-foreground">
-            <ImpactCounter value={stats?.resolved_count || 87} />
+            <ImpactCounter value={stats?.resolved_count ?? 87} />
           </p>
           <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
             ↑ 61% resolution rate
@@ -124,7 +124,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <p className="text-3xl font-extrabold text-foreground">
-            <ImpactCounter value={stats?.active_users || 1240} />
+            <ImpactCounter value={stats?.active_users ?? 1240} />
           </p>
           <span className="text-[11px] text-primary font-semibold flex items-center gap-1">
             Across 14 neighborhoods

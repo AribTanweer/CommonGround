@@ -185,3 +185,111 @@ class CommonGroundBusinessRulesTestCase(TestCase):
         new_u = User.objects.get(username="newuser")
         self.assertEqual(new_u.bio, "Community member")
         self.assertEqual(new_u.location, "Delhi")
+
+    def test_category_slug_and_author_filters(self):
+        other_cat = Category.objects.create(name="Environment", slug="environment")
+        Challenge.objects.create(
+            author=self.user2,
+            title="Plant Trees",
+            description="More shade needed",
+            category=other_cat,
+        )
+
+        res_slug = self.client.get("/api/v1/challenges/?category=civic")
+        self.assertEqual(res_slug.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_slug.data["count"], 1)
+        self.assertEqual(res_slug.data["results"][0]["title"], "Broken Sidewalk")
+
+        res_id = self.client.get(f"/api/v1/challenges/?category={other_cat.id}")
+        self.assertEqual(res_id.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_id.data["count"], 1)
+        self.assertEqual(res_id.data["results"][0]["title"], "Plant Trees")
+
+        res_author = self.client.get("/api/v1/challenges/?author=alice")
+        self.assertEqual(res_author.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_author.data["count"], 1)
+        self.assertEqual(res_author.data["results"][0]["author"]["username"], "alice")
+
+    def test_non_owner_cannot_patch_solution(self):
+        solution = Solution.objects.create(
+            challenge=self.challenge,
+            author=self.user2,
+            title="Fix it",
+            summary="Initial plan",
+            effort_level="low",
+        )
+        self.client.force_authenticate(user=self.user3)
+        res_forbidden = self.client.patch(
+            f"/api/v1/solutions/{solution.id}/",
+            {"summary": "Hijacked plan"},
+        )
+        self.assertEqual(res_forbidden.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.client.force_authenticate(user=self.user2)
+        res_ok = self.client.patch(
+            f"/api/v1/solutions/{solution.id}/",
+            {"summary": "Updated plan", "revision_note": "Clarified steps"},
+        )
+        self.assertEqual(res_ok.status_code, status.HTTP_200_OK)
+        self.assertEqual(solution.revisions.count(), 1)
+
+    def test_notification_nested_shape_and_single_mark_read(self):
+        n1 = Notification.objects.create(
+            recipient=self.user1,
+            actor=self.user2,
+            verb="supported your challenge",
+            target_type="challenge",
+            target_id=self.challenge.id,
+            challenge=self.challenge,
+        )
+        n2 = Notification.objects.create(
+            recipient=self.user1,
+            actor=self.user3,
+            verb="commented on your challenge",
+            target_type="challenge",
+            target_id=self.challenge.id,
+            challenge=self.challenge,
+        )
+
+        self.client.force_authenticate(user=self.user1)
+        res_list = self.client.get("/api/v1/notifications/")
+        self.assertEqual(res_list.status_code, status.HTTP_200_OK)
+        first = res_list.data["results"][0]
+        self.assertIsInstance(first["actor"], dict)
+        self.assertIn("username", first["actor"])
+        self.assertIsInstance(first["challenge"], dict)
+        self.assertEqual(first["challenge"]["id"], self.challenge.id)
+
+        # Mark only n1 read via single id
+        res_mark = self.client.post("/api/v1/notifications/mark-read/", {"id": n1.id}, format="json")
+        self.assertEqual(res_mark.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_mark.data["updated_count"], 1)
+        n1.refresh_from_db()
+        n2.refresh_from_db()
+        self.assertTrue(n1.is_read)
+        self.assertFalse(n2.is_read)
+
+    def test_stats_overview_and_status_update_payload(self):
+        Solution.objects.create(
+            challenge=self.challenge,
+            author=self.user2,
+            title="Resurface",
+            summary="Steps",
+            effort_level="med",
+        )
+        res_stats = self.client.get("/api/v1/stats/overview/")
+        self.assertEqual(res_stats.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_stats.data["total_solutions"], 1)
+        self.assertIn("resolved_over_time", res_stats.data)
+        self.assertGreaterEqual(len(res_stats.data["resolved_over_time"]), 1)
+
+        self.client.force_authenticate(user=self.user1)
+        res_status = self.client.patch(
+            f"/api/v1/challenges/{self.challenge.id}/status/",
+            {"status": "resolved"},
+            format="json",
+        )
+        self.assertEqual(res_status.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_status.data["status"], "resolved")
+        self.assertEqual(res_status.data["id"], self.challenge.id)
+        self.assertEqual(res_status.data["slug"], self.challenge.slug)

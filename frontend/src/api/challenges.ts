@@ -4,6 +4,7 @@ import { Category, Challenge, PaginatedResponse, Tag } from './types';
 
 export interface ChallengeQueryParams {
   category?: string;
+  author?: string;
   status?: string;
   tag?: string;
   search?: string;
@@ -11,7 +12,7 @@ export interface ChallengeQueryParams {
   page?: number;
 }
 
-export const useChallenges = (params: ChallengeQueryParams = {}) => {
+export const useChallenges = (params: ChallengeQueryParams = {}, enabled = true) => {
   return useQuery({
     queryKey: ['challenges', params],
     queryFn: async (): Promise<PaginatedResponse<Challenge>> => {
@@ -20,13 +21,15 @@ export const useChallenges = (params: ChallengeQueryParams = {}) => {
       });
       return data;
     },
+    enabled,
     staleTime: 1000 * 60,
   });
 };
 
 export const useChallenge = (idOrSlug: string | number | undefined) => {
+  const key = idOrSlug !== undefined ? String(idOrSlug) : undefined;
   return useQuery({
-    queryKey: ['challenge', idOrSlug],
+    queryKey: ['challenge', key],
     queryFn: async (): Promise<Challenge> => {
       const { data } = await apiClient.get<Challenge>(`/challenges/${idOrSlug}/`);
       return data;
@@ -52,14 +55,20 @@ export const useCreateChallenge = () => {
 
 export const useUpdateChallengeStatus = (challengeId: number) => {
   const queryClient = useQueryClient();
+  const key = String(challengeId);
   return useMutation({
     mutationFn: async (status: string) => {
       const { data } = await apiClient.patch<Challenge>(`/challenges/${challengeId}/status/`, { status });
       return data;
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData(['challenge', challengeId], updated);
-      queryClient.setQueryData(['challenge', updated.slug], updated);
+      if (updated?.id) {
+        queryClient.setQueryData(['challenge', key], updated);
+        if (updated.slug) {
+          queryClient.setQueryData(['challenge', updated.slug], updated);
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['challenge'] });
       queryClient.invalidateQueries({ queryKey: ['challenges'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
@@ -68,6 +77,7 @@ export const useUpdateChallengeStatus = (challengeId: number) => {
 
 export const useSupportChallenge = (challengeId: number) => {
   const queryClient = useQueryClient();
+  const key = String(challengeId);
 
   return useMutation({
     mutationFn: async ({ isSupported }: { isSupported: boolean }) => {
@@ -83,11 +93,11 @@ export const useSupportChallenge = (challengeId: number) => {
     },
     // Optimistic Update
     onMutate: async ({ isSupported }) => {
-      await queryClient.cancelQueries({ queryKey: ['challenge', challengeId] });
+      await queryClient.cancelQueries({ queryKey: ['challenge', key] });
 
-      const prevDetail = queryClient.getQueryData<Challenge>(['challenge', challengeId]);
+      const prevDetail = queryClient.getQueryData<Challenge>(['challenge', key]);
       if (prevDetail) {
-        queryClient.setQueryData<Challenge>(['challenge', challengeId], {
+        queryClient.setQueryData<Challenge>(['challenge', key], {
           ...prevDetail,
           has_supported: !isSupported,
           support_count: Math.max(0, prevDetail.support_count + (isSupported ? -1 : 1)),
@@ -98,11 +108,11 @@ export const useSupportChallenge = (challengeId: number) => {
     },
     onError: (_err, _vars, context) => {
       if (context?.prevDetail) {
-        queryClient.setQueryData(['challenge', challengeId], context.prevDetail);
+        queryClient.setQueryData(['challenge', key], context.prevDetail);
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['challenge', challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['challenge'] });
       queryClient.invalidateQueries({ queryKey: ['challenges'] });
     },
   });
@@ -110,6 +120,7 @@ export const useSupportChallenge = (challengeId: number) => {
 
 export const useFollowChallenge = (challengeId: number) => {
   const queryClient = useQueryClient();
+  const key = String(challengeId);
 
   return useMutation({
     mutationFn: async ({ isFollowing }: { isFollowing: boolean }) => {
@@ -122,10 +133,10 @@ export const useFollowChallenge = (challengeId: number) => {
       }
     },
     onMutate: async ({ isFollowing }) => {
-      await queryClient.cancelQueries({ queryKey: ['challenge', challengeId] });
-      const prev = queryClient.getQueryData<Challenge>(['challenge', challengeId]);
+      await queryClient.cancelQueries({ queryKey: ['challenge', key] });
+      const prev = queryClient.getQueryData<Challenge>(['challenge', key]);
       if (prev) {
-        queryClient.setQueryData<Challenge>(['challenge', challengeId], {
+        queryClient.setQueryData<Challenge>(['challenge', key], {
           ...prev,
           is_following: !isFollowing,
         });
@@ -134,11 +145,11 @@ export const useFollowChallenge = (challengeId: number) => {
     },
     onError: (_err, _vars, context) => {
       if (context?.prev) {
-        queryClient.setQueryData(['challenge', challengeId], context.prev);
+        queryClient.setQueryData(['challenge', key], context.prev);
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['challenge', challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['challenge'] });
     },
   });
 };

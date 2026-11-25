@@ -3,8 +3,9 @@ import { apiClient } from './axios';
 import { PaginatedResponse, Solution, SolutionCreatePayload, SolutionRevision } from './types';
 
 export const useSolutions = (challengeId: number | string | undefined) => {
+  const key = challengeId !== undefined ? String(challengeId) : undefined;
   return useQuery({
-    queryKey: ['solutions', challengeId],
+    queryKey: ['solutions', key],
     queryFn: async (): Promise<Solution[]> => {
       const { data } = await apiClient.get<Solution[] | PaginatedResponse<Solution>>(`/challenges/${challengeId}/solutions/`);
       return Array.isArray(data) ? data : data.results;
@@ -15,14 +16,15 @@ export const useSolutions = (challengeId: number | string | undefined) => {
 
 export const useCreateSolution = (challengeId: number | string) => {
   const queryClient = useQueryClient();
+  const key = String(challengeId);
   return useMutation({
     mutationFn: async (payload: SolutionCreatePayload): Promise<Solution> => {
       const { data } = await apiClient.post<Solution>(`/challenges/${challengeId}/solutions/`, payload);
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['solutions', challengeId] });
-      queryClient.invalidateQueries({ queryKey: ['challenge', challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['solutions', key] });
+      queryClient.invalidateQueries({ queryKey: ['challenge'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
   });
@@ -30,6 +32,7 @@ export const useCreateSolution = (challengeId: number | string) => {
 
 export const useVoteSolution = (solutionId: number, challengeId?: number | string) => {
   const queryClient = useQueryClient();
+  const key = challengeId !== undefined ? String(challengeId) : undefined;
 
   return useMutation({
     mutationFn: async (value: 1 | -1) => {
@@ -38,13 +41,13 @@ export const useVoteSolution = (solutionId: number, challengeId?: number | strin
     },
     // Optimistic Update
     onMutate: async (voteValue: 1 | -1) => {
-      if (challengeId) {
-        await queryClient.cancelQueries({ queryKey: ['solutions', challengeId] });
-        const prevSolutions = queryClient.getQueryData<Solution[]>(['solutions', challengeId]);
+      if (key) {
+        await queryClient.cancelQueries({ queryKey: ['solutions', key] });
+        const prevSolutions = queryClient.getQueryData<Solution[]>(['solutions', key]);
 
         if (prevSolutions) {
           queryClient.setQueryData<Solution[]>(
-            ['solutions', challengeId],
+            ['solutions', key],
             prevSolutions.map((sol) => {
               if (sol.id === solutionId) {
                 const currentVote = sol.user_vote || 0;
@@ -78,13 +81,13 @@ export const useVoteSolution = (solutionId: number, challengeId?: number | strin
       }
     },
     onError: (_err, _vars, context) => {
-      if (challengeId && context?.prevSolutions) {
-        queryClient.setQueryData(['solutions', challengeId], context.prevSolutions);
+      if (key && context?.prevSolutions) {
+        queryClient.setQueryData(['solutions', key], context.prevSolutions);
       }
     },
     onSettled: () => {
-      if (challengeId) {
-        queryClient.invalidateQueries({ queryKey: ['solutions', challengeId] });
+      if (key) {
+        queryClient.invalidateQueries({ queryKey: ['solutions', key] });
       }
     },
   });
@@ -92,14 +95,15 @@ export const useVoteSolution = (solutionId: number, challengeId?: number | strin
 
 export const useAcceptSolution = (solutionId: number, challengeId: number | string) => {
   const queryClient = useQueryClient();
+  const key = String(challengeId);
   return useMutation({
     mutationFn: async () => {
       const { data } = await apiClient.post(`/solutions/${solutionId}/accept/`);
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['solutions', challengeId] });
-      queryClient.invalidateQueries({ queryKey: ['challenge', challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['solutions', key] });
+      queryClient.invalidateQueries({ queryKey: ['challenge'] });
       queryClient.invalidateQueries({ queryKey: ['challenges'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
     },

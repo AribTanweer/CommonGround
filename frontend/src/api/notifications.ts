@@ -17,7 +17,7 @@ export const useNotifications = (enabled = true) => {
 export const useMarkRead = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload?: { id?: number }) => {
+    mutationFn: async (payload?: { id?: number; ids?: number[] }) => {
       const { data } = await apiClient.post('/notifications/mark-read/', payload || {});
       return data;
     },

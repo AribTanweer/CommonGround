@@ -26,10 +26,11 @@ export const Profile: React.FC = () => {
   const targetUsername = username || currentUser?.username;
   const { data: userProfile, isLoading, isError } = useUserProfile(targetUsername);
 
-  // Fetch challenges by this user
-  const { data: userChallengesData, isLoading: challengesLoading } = useChallenges({
-    search: targetUsername,
-  });
+  // Fetch challenges authored by this user
+  const { data: userChallengesData, isLoading: challengesLoading } = useChallenges(
+    { author: targetUsername },
+    !!targetUsername
+  );
 
   if (isLoading) {
     return (

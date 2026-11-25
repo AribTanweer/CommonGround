@@ -145,4 +145,5 @@ class ChallengeViewSet(OwnerOnCreateMixin, viewsets.ModelViewSet):
 
         challenge.status = new_status
         challenge.save(update_fields=["status"])
-        return Response({"detail": f"Status changed to {new_status}.", "status": new_status})
+        serializer = ChallengeDetailSerializer(challenge, context={"request": request})
+        return Response({**serializer.data, "detail": f"Status changed to {new_status}."})

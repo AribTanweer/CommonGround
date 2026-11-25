@@ -41,7 +41,7 @@ class SolutionDetailView(generics.RetrieveUpdateAPIView):
     """GET/PATCH /solutions/{pk}/ — PATCH creates a revision."""
     queryset = Solution.objects.select_related("author", "challenge").prefetch_related("revisions__editor")
     serializer_class = SolutionDetailSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
     def perform_update(self, serializer):
         solution = self.get_object()

@@ -52,9 +52,12 @@ class StatsOverviewView(APIView):
 
     def get(self, request):
         from apps.challenges.models import Challenge, Category
-        from django.db.models import Count
+        from apps.solutions.models import Solution
+        from django.db.models import Q
+        from django.db.models.functions import TruncMonth
 
         total_challenges = Challenge.objects.count()
+        total_solutions = Solution.objects.count()
         resolved_count = Challenge.objects.filter(status=Challenge.Status.RESOLVED).count()
         active_users = User.objects.filter(is_active=True).count()
         top_categories = list(
@@ -63,9 +66,30 @@ class StatsOverviewView(APIView):
             .values("name", "slug", "count")[:6]
         )
 
+        monthly_qs = (
+            Challenge.objects.annotate(month=TruncMonth("created_at"))
+            .values("month")
+            .annotate(
+                challenges=Count("id"),
+                resolved=Count("id", filter=Q(status=Challenge.Status.RESOLVED)),
+            )
+            .order_by("month")
+        )
+        resolved_over_time = [
+            {
+                "month": row["month"].strftime("%b %Y") if row["month"] else "",
+                "challenges": row["challenges"],
+                "resolved": row["resolved"],
+            }
+            for row in monthly_qs
+            if row["month"] is not None
+        ][-6:]
+
         return Response({
             "total_challenges": total_challenges,
+            "total_solutions": total_solutions,
             "resolved_count": resolved_count,
             "active_users": active_users,
             "top_categories": top_categories,
+            "resolved_over_time": resolved_over_time,
         })

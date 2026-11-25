@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Check, Sparkles } from 'lucide-react';
 import { useNotifications, useMarkRead } from '@/api/notifications';
 import { useAuth } from '@/context/AuthContext';
@@ -16,6 +16,7 @@ import { Button } from './ui/button';
 
 export const NotificationBell: React.FC = () => {
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const { data: notifications = [] } = useNotifications(isAuthenticated);
   const markReadMutation = useMarkRead();
 
@@ -30,8 +31,13 @@ export const NotificationBell: React.FC = () => {
     markReadMutation.mutate({});
   };
 
-  const handleItemClick = (id: number) => {
-    markReadMutation.mutate({ id });
+  const handleItemClick = (id: number, isRead: boolean, challengeId?: number) => {
+    if (!isRead) {
+      markReadMutation.mutate({ ids: [id] });
+    }
+    if (challengeId) {
+      navigate(`/challenges/${challengeId}`);
+    }
   };
 
   return (
@@ -79,7 +85,7 @@ export const NotificationBell: React.FC = () => {
             notifications.slice(0, 5).map((notif) => (
               <DropdownMenuItem
                 key={notif.id}
-                onClick={() => handleItemClick(notif.id)}
+                onClick={() => handleItemClick(notif.id, notif.is_read, notif.challenge?.id)}
                 className={`p-2.5 rounded-lg flex flex-col items-start gap-1 cursor-pointer transition-colors ${
                   !notif.is_read ? 'bg-primary/5 font-medium' : ''
                 }`}

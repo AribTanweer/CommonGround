@@ -1,9 +1,20 @@
 from rest_framework import serializers
+from apps.accounts.serializers import UserSummarySerializer
+from apps.challenges.models import Challenge
 from .models import Notification
 
 
+class NotificationChallengeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Challenge
+        fields = ("id", "title", "slug")
+        read_only_fields = fields
+
+
 class NotificationSerializer(serializers.ModelSerializer):
+    actor = UserSummarySerializer(read_only=True)
     actor_username = serializers.CharField(source="actor.username", read_only=True)
+    challenge = NotificationChallengeSerializer(read_only=True)
     challenge_title = serializers.CharField(source="challenge.title", read_only=True, default=None)
 
     class Meta:
@@ -17,6 +28,7 @@ class NotificationSerializer(serializers.ModelSerializer):
 
 
 class MarkReadSerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=False)
     ids = serializers.ListField(
         child=serializers.IntegerField(), required=False, allow_empty=True
     )

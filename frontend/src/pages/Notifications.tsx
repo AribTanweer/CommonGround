@@ -39,8 +39,10 @@ export const Notifications: React.FC = () => {
     markReadMutation.mutate({});
   };
 
-  const handleItemClick = (id: number) => {
-    markReadMutation.mutate({ id });
+  const handleItemClick = (id: number, isRead: boolean) => {
+    if (!isRead) {
+      markReadMutation.mutate({ ids: [id] });
+    }
   };
 
   return (
@@ -114,8 +116,8 @@ export const Notifications: React.FC = () => {
           filtered.map((item) => (
             <div
               key={item.id}
-              onClick={() => handleItemClick(item.id)}
-              className={`flex items-start gap-3.5 p-4 rounded-2xl border transition-all ${
+              onClick={() => handleItemClick(item.id, item.is_read)}
+              className={`flex items-start gap-3.5 p-4 rounded-2xl border transition-all cursor-pointer ${
                 !item.is_read
                   ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20'
                   : 'border-border/80 bg-card hover:bg-muted/40'
