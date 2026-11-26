@@ -33,7 +33,7 @@ class ChallengeViewSet(OwnerOnCreateMixin, viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     filterset_class = ChallengeFilter
     search_fields = ["title", "description"]
-    ordering_fields = ["support_count", "created_at"]
+    ordering_fields = ["support_count", "created_at", "_solutions_count"]
     ordering = ["-created_at"]
     lookup_field = "pk"
 

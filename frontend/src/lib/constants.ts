@@ -60,12 +60,33 @@ export const EFFORT_LEVELS = [
 ] as const;
 
 export const CATEGORY_COLORS: Record<string, string> = {
-  infrastructure: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300',
-  environment: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300',
-  education: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300',
-  healthcare: 'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300',
-  safety: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
-  technology: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300',
-  transportation: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300',
-  community: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300',
+  infrastructure: 'bg-blue-100 text-blue-800 border-blue-200/80 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800/60',
+  environment: 'bg-emerald-100 text-emerald-800 border-emerald-200/80 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60',
+  education: 'bg-amber-100 text-amber-800 border-amber-200/80 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/60',
+  healthcare: 'bg-rose-100 text-rose-800 border-rose-200/80 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/60',
+  safety: 'bg-red-100 text-red-800 border-red-200/80 dark:bg-red-950/60 dark:text-red-300 dark:border-red-800/60',
+  technology: 'bg-indigo-100 text-indigo-800 border-indigo-200/80 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800/60',
+  transportation: 'bg-cyan-100 text-cyan-800 border-cyan-200/80 dark:bg-cyan-950/60 dark:text-cyan-300 dark:border-cyan-800/60',
+  community: 'bg-purple-100 text-purple-800 border-purple-200/80 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800/60',
 };
+
+export const CATEGORY_GRADIENTS: Record<string, string> = {
+  infrastructure: 'from-blue-500/15 via-indigo-500/10 to-sky-500/15 text-blue-600 dark:text-blue-400',
+  environment: 'from-emerald-500/15 via-teal-500/10 to-green-500/15 text-emerald-600 dark:text-emerald-400',
+  education: 'from-amber-500/15 via-orange-500/10 to-yellow-500/15 text-amber-600 dark:text-amber-400',
+  healthcare: 'from-rose-500/15 via-pink-500/10 to-red-500/15 text-rose-600 dark:text-rose-400',
+  safety: 'from-red-500/15 via-rose-500/10 to-orange-500/15 text-red-600 dark:text-red-400',
+  technology: 'from-indigo-500/15 via-violet-500/10 to-blue-500/15 text-indigo-600 dark:text-indigo-400',
+  transportation: 'from-cyan-500/15 via-sky-500/10 to-blue-500/15 text-cyan-600 dark:text-cyan-400',
+  community: 'from-purple-500/15 via-fuchsia-500/10 to-indigo-500/15 text-purple-600 dark:text-purple-400',
+};
+
+export function getCategoryColor(slug?: string): string {
+  if (!slug) return 'bg-muted/60 text-foreground border-border/60';
+  return CATEGORY_COLORS[slug.toLowerCase()] || 'bg-muted/60 text-foreground border-border/60';
+}
+
+export function getCategoryGradient(slug?: string): string {
+  if (!slug) return 'from-primary/10 via-indigo-500/10 to-purple-500/10 text-primary';
+  return CATEGORY_GRADIENTS[slug.toLowerCase()] || 'from-primary/10 via-indigo-500/10 to-purple-500/10 text-primary';
+}

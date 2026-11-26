@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Compass,
@@ -10,9 +10,12 @@ import {
   LogOut,
   User as UserIcon,
   Globe2,
+  Bell,
+  Search,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useNotifications } from '@/api/notifications';
 import { NotificationBell } from '../NotificationBell';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -32,6 +35,41 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [quickSearch, setQuickSearch] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const { data: notifications = [] } = useNotifications(isAuthenticated);
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isInput =
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.isContentEditable;
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (e.key === '/' && !isInput) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleQuickSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = quickSearch.trim();
+    if (trimmed) {
+      navigate(`/explore?search=${encodeURIComponent(trimmed)}`);
+      searchInputRef.current?.blur();
+    } else {
+      navigate('/explore');
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -82,6 +120,23 @@ export const Navbar: React.FC = () => {
 
         {/* Right CTA & Controls */}
         <div className="flex items-center gap-2">
+          {/* Global Quick Search */}
+          <form onSubmit={handleQuickSearch} className="hidden lg:flex items-center relative">
+            <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-3 pointer-events-none" />
+            <input
+              ref={searchInputRef}
+              type="search"
+              value={quickSearch}
+              onChange={(e) => setQuickSearch(e.target.value)}
+              placeholder="Search challenges..."
+              aria-label="Search challenges"
+              className="h-9 w-52 xl:w-64 rounded-xl border border-border/80 bg-muted/40 pl-8 pr-12 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-background transition-all"
+            />
+            <kbd className="pointer-events-none absolute right-2.5 hidden xl:inline-flex h-5 items-center rounded border border-border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+              /
+            </kbd>
+          </form>
+
           {/* Create Challenge Button */}
           <Link to="/challenges/new" className="hidden sm:inline-flex">
             <Button size="sm" variant="cta" className="gap-2 shadow-sm rounded-xl">
@@ -132,9 +187,16 @@ export const Navbar: React.FC = () => {
                   <UserIcon className="h-4 w-4" />
                   <span>My Profile</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/notifications')} className="cursor-pointer gap-2">
-                  <NotificationBell />
-                  <span>Notifications</span>
+                <DropdownMenuItem onClick={() => navigate('/notifications')} className="cursor-pointer justify-between">
+                  <span className="flex items-center gap-2">
+                    <Bell className="h-4 w-4" />
+                    <span>Notifications</span>
+                  </span>
+                  {unreadCount > 0 && (
+                    <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer gap-2 text-destructive focus:text-destructive">

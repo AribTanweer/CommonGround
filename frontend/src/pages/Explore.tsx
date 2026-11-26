@@ -10,7 +10,12 @@ import {
   PlusCircle,
   AlertCircle,
   RotateCcw,
+  Lightbulb,
+  LayoutGrid,
+  List,
+  X,
 } from 'lucide-react';
+import { STATUS_CONFIG, ChallengeStatus } from '@/lib/constants';
 import { useChallenges, useCategories, useTags } from '@/api/challenges';
 import { ChallengeCard } from '@/components/ChallengeCard';
 import { FilterSidebar } from '@/components/FilterSidebar';
@@ -23,12 +28,13 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 export const Explore: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const category = searchParams.get('category') || undefined;
   const status = searchParams.get('status') || undefined;
   const tag = searchParams.get('tag') || undefined;
   const search = searchParams.get('search') || '';
-  const ordering = searchParams.get('ordering') || '-support_count';
+  const ordering = searchParams.get('ordering') || 'trending';
   const page = parseInt(searchParams.get('page') || '1', 10);
 
   const { data: categories = [] } = useCategories();
@@ -72,10 +78,16 @@ export const Explore: React.FC = () => {
   };
 
   const sortTabs = [
-    { label: 'Trending', value: '-support_count', icon: TrendingUp },
-    { label: 'Newest', value: '-created_at', icon: Clock },
+    { label: 'Trending', value: 'trending', icon: TrendingUp },
     { label: 'Most Supported', value: '-support_count', icon: ThumbsUp },
+    { label: 'Newest', value: '-created_at', icon: Clock },
+    { label: 'Most Solutions', value: '-_solutions_count', icon: Lightbulb },
   ];
+
+  const activeCategoryLabel = categories.find((c) => c.slug === category || String(c.id) === category)?.name || category;
+  const activeStatusLabel = status ? (STATUS_CONFIG[status as ChallengeStatus]?.label || status) : undefined;
+  const activeTagLabel = tags.find((t) => t.slug === tag || String(t.id) === tag)?.name || tag;
+  const hasActiveFilters = Boolean(category || status || tag || search);
 
   return (
     <div className="container px-4 py-8 max-w-7xl">
@@ -150,9 +162,9 @@ export const Explore: React.FC = () => {
           </Sheet>
         </div>
 
-        {/* Sort Tabs & Count */}
+        {/* Sort Tabs, View Toggle & Count */}
         <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-b border-border/60 pb-4">
-          <div className="flex items-center gap-1.5 p-1 bg-muted/70 rounded-xl">
+          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-muted/70 rounded-xl">
             {sortTabs.map((tab) => {
               const Icon = tab.icon;
               const isSelected = ordering === tab.value;
@@ -174,14 +186,97 @@ export const Explore: React.FC = () => {
             })}
           </div>
 
-          <span className="text-xs font-medium text-muted-foreground">
-            {totalCount > 0 ? (
-              <>Showing <strong>{challenges.length}</strong> of <strong>{totalCount}</strong> challenges</>
-            ) : (
-              '0 challenges found'
-            )}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium text-muted-foreground">
+              {totalCount > 0 ? (
+                <>Showing <strong>{challenges.length}</strong> of <strong>{totalCount}</strong> challenges</>
+              ) : (
+                '0 challenges found'
+              )}
+            </span>
+
+            <div className="inline-flex items-center rounded-xl border border-border/80 bg-muted/40 p-0.5">
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                aria-label="Grid view"
+                className={`p-1.5 rounded-lg transition-colors ${
+                  viewMode === 'grid'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                aria-label="List view"
+                className={`p-1.5 rounded-lg transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <List className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
         </div>
+
+        {/* Active Filter Chips */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Active filters:</span>
+            {category && (
+              <button
+                type="button"
+                onClick={() => updateParam('category', undefined)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold hover:bg-primary/20 transition-colors"
+              >
+                <span>Category: {activeCategoryLabel}</span>
+                <X className="h-3 w-3" />
+              </button>
+            )}
+            {status && (
+              <button
+                type="button"
+                onClick={() => updateParam('status', undefined)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold hover:bg-primary/20 transition-colors"
+              >
+                <span>Status: {activeStatusLabel}</span>
+                <X className="h-3 w-3" />
+              </button>
+            )}
+            {tag && (
+              <button
+                type="button"
+                onClick={() => updateParam('tag', undefined)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold hover:bg-primary/20 transition-colors"
+              >
+                <span>Tag: #{activeTagLabel}</span>
+                <X className="h-3 w-3" />
+              </button>
+            )}
+            {search && (
+              <button
+                type="button"
+                onClick={() => updateParam('search', undefined)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold hover:bg-primary/20 transition-colors"
+              >
+                <span>Search: "{search}"</span>
+                <X className="h-3 w-3" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="text-xs font-semibold text-muted-foreground hover:text-foreground underline underline-offset-2 ml-1"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main Grid & Desktop Sidebar */}
@@ -243,10 +338,16 @@ export const Explore: React.FC = () => {
               actionLabel="Clear Filters"
               onAction={handleResetFilters}
             />
+          ) : viewMode === 'list' ? (
+            <div className="space-y-3">
+              {challenges.map((challenge) => (
+                <ChallengeCard key={challenge.id} challenge={challenge} variant="list" />
+              ))}
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
               {challenges.map((challenge) => (
-                <ChallengeCard key={challenge.id} challenge={challenge} />
+                <ChallengeCard key={challenge.id} challenge={challenge} variant="grid" />
               ))}
             </div>
           )}

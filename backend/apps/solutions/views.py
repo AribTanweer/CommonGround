@@ -14,6 +14,19 @@ from .serializers import (
 )
 
 
+class SolutionListView(generics.ListAPIView):
+    """GET /solutions/?author=<username>"""
+    serializer_class = SolutionListSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        qs = Solution.objects.select_related("author", "challenge").order_by("-created_at")
+        author = self.request.query_params.get("author")
+        if author:
+            qs = qs.filter(author__username__iexact=author)
+        return qs
+
+
 class ChallengeSolutionListCreateView(generics.ListCreateAPIView):
     """GET/POST /challenges/{challenge_pk}/solutions/"""
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]

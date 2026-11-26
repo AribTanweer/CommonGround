@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { CornerDownRight, Trash2, Send } from 'lucide-react';
+import { CornerDownRight, Trash2, Send, Flag } from 'lucide-react';
 import { Comment } from '@/api/types';
 import { timeAgo } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
+import { ConfirmDialog } from './ui/confirm-dialog';
+import { ReportDialog } from './ReportDialog';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import { useCreateComment, useDeleteComment } from '@/api/engagement';
 
 interface CommentThreadProps {
@@ -102,8 +105,11 @@ const CommentItem: React.FC<CommentItemProps> = ({
   depth = 0,
 }) => {
   const { user, isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const [isReplying, setIsReplying] = useState(false);
   const [replyBody, setReplyBody] = useState('');
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const createCommentMutation = useCreateComment({ challengeId, solutionId });
   const deleteCommentMutation = useDeleteComment({ challengeId, solutionId });
@@ -125,9 +131,11 @@ const CommentItem: React.FC<CommentItemProps> = ({
   };
 
   const handleDelete = () => {
-    if (confirm('Delete this comment?')) {
-      deleteCommentMutation.mutate(comment.id);
-    }
+    deleteCommentMutation.mutate(comment.id, {
+      onSuccess: () => {
+        toast({ title: 'Comment deleted', variant: 'default' });
+      },
+    });
   };
 
   return (
@@ -154,10 +162,20 @@ const CommentItem: React.FC<CommentItemProps> = ({
           </div>
 
           <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            {isAuthenticated && !isAuthor && (
+              <button
+                type="button"
+                onClick={() => setReportOpen(true)}
+                className="text-muted-foreground hover:text-destructive transition-colors"
+                title="Report comment"
+              >
+                <Flag className="h-3.5 w-3.5" />
+              </button>
+            )}
             {isAuthor && (
               <button
                 type="button"
-                onClick={handleDelete}
+                onClick={() => setDeleteOpen(true)}
                 className="text-muted-foreground hover:text-destructive transition-colors"
                 title="Delete comment"
               >
@@ -230,6 +248,24 @@ const CommentItem: React.FC<CommentItemProps> = ({
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete comment?"
+        description="This will permanently remove your comment from the discussion."
+        confirmLabel="Delete"
+        variant="destructive"
+        isPending={deleteCommentMutation.isPending}
+        onConfirm={handleDelete}
+      />
+
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        targetType="comment"
+        targetId={comment.id}
+      />
     </div>
   );
 };

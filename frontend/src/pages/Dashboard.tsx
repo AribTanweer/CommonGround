@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import {
   BarChart,
   Bar,
@@ -27,6 +28,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 export const Dashboard: React.FC = () => {
   const { data: stats } = useStats();
   const { data: leaderboard = [], isLoading: leaderboardLoading } = useLeaderboard();
+
+  const totalChallenges = stats?.total_challenges ?? 0;
+  const totalSolutions = stats?.total_solutions ?? 0;
+  const resolvedCount = stats?.resolved_count ?? 0;
+  const activeUsers = stats?.active_users ?? 0;
+  const proposalsPerChallenge =
+    totalChallenges > 0 ? (totalSolutions / totalChallenges).toFixed(1) : '0.0';
+  const resolutionRate =
+    totalChallenges > 0 ? Math.round((resolvedCount / totalChallenges) * 100) : 0;
 
   // Fallback demo chart data if server has sparse stats
   const categoryData =
@@ -79,10 +89,10 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <p className="text-3xl font-extrabold text-foreground">
-            <ImpactCounter value={stats?.total_challenges ?? 142} />
+            <ImpactCounter value={totalChallenges} />
           </p>
-          <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
-            ↑ 18% from last month
+          <span className="text-[11px] text-muted-foreground font-semibold flex items-center gap-1">
+            Community-submitted issues
           </span>
         </div>
 
@@ -94,10 +104,10 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <p className="text-3xl font-extrabold text-foreground">
-            <ImpactCounter value={stats?.total_solutions ?? 389} />
+            <ImpactCounter value={totalSolutions} />
           </p>
           <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
-            ↑ 2.7 proposals/challenge
+            {proposalsPerChallenge} proposals / challenge
           </span>
         </div>
 
@@ -109,10 +119,10 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <p className="text-3xl font-extrabold text-foreground">
-            <ImpactCounter value={stats?.resolved_count ?? 87} />
+            <ImpactCounter value={resolvedCount} />
           </p>
           <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
-            ↑ 61% resolution rate
+            {resolutionRate}% resolution rate
           </span>
         </div>
 
@@ -124,10 +134,10 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <p className="text-3xl font-extrabold text-foreground">
-            <ImpactCounter value={stats?.active_users ?? 1240} />
+            <ImpactCounter value={activeUsers} />
           </p>
           <span className="text-[11px] text-primary font-semibold flex items-center gap-1">
-            Across 14 neighborhoods
+            Registered civic contributors
           </span>
         </div>
       </div>
@@ -250,7 +260,10 @@ export const Dashboard: React.FC = () => {
                       {idx === 0 ? '🥇 #1' : idx === 1 ? '🥈 #2' : idx === 2 ? '🥉 #3' : `#${idx + 1}`}
                     </td>
                     <td className="py-3.5 px-3">
-                      <div className="flex items-center gap-2.5">
+                      <Link
+                        to={`/profile/${user.username}`}
+                        className="flex items-center gap-2.5 group"
+                      >
                         <Avatar className="h-8 w-8 ring-1 ring-border">
                           <AvatarImage src={user.avatar || undefined} />
                           <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs uppercase">
@@ -258,14 +271,14 @@ export const Dashboard: React.FC = () => {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="flex items-center gap-1 font-semibold text-foreground">
+                          <div className="flex items-center gap-1 font-semibold text-foreground group-hover:text-primary group-hover:underline transition-colors">
                             <span>{user.username}</span>
                             {user.reputation >= 50 && (
                               <ShieldCheck className="h-3.5 w-3.5 text-amber-500" />
                             )}
                           </div>
                         </div>
-                      </div>
+                      </Link>
                     </td>
                     <td className="py-3.5 px-3 text-xs text-muted-foreground">
                       {user.location || 'Civic Participant'}

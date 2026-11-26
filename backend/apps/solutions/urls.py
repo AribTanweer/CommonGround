@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import (
+    SolutionListView,
     ChallengeSolutionListCreateView,
     SolutionDetailView,
     SolutionVoteView,
@@ -8,6 +9,7 @@ from .views import (
 )
 
 urlpatterns = [
+    path("solutions/", SolutionListView.as_view(), name="solution-list"),
     path(
         "challenges/<int:challenge_pk>/solutions/",
         ChallengeSolutionListCreateView.as_view(),

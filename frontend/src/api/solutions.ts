@@ -122,3 +122,36 @@ export const useSolutionRevisions = (solutionId: number | undefined) => {
     enabled: !!solutionId,
   });
 };
+
+export interface SolutionUpdatePayload extends Partial<SolutionCreatePayload> {
+  revision_note?: string;
+}
+
+export const useUpdateSolution = (solutionId: number, challengeId: number | string) => {
+  const queryClient = useQueryClient();
+  const key = String(challengeId);
+  return useMutation({
+    mutationFn: async (payload: SolutionUpdatePayload): Promise<Solution> => {
+      const { data } = await apiClient.patch<Solution>(`/solutions/${solutionId}/`, payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['solutions', key] });
+      queryClient.invalidateQueries({ queryKey: ['solution-revisions', solutionId] });
+      queryClient.invalidateQueries({ queryKey: ['challenge'] });
+    },
+  });
+};
+
+export const useUserSolutions = (username: string | undefined) => {
+  return useQuery({
+    queryKey: ['user-solutions', username],
+    queryFn: async (): Promise<Solution[]> => {
+      const { data } = await apiClient.get<Solution[] | PaginatedResponse<Solution>>('/solutions/', {
+        params: { author: username },
+      });
+      return Array.isArray(data) ? data : data.results;
+    },
+    enabled: !!username,
+  });
+};

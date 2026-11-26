@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ShieldCheck,
@@ -8,29 +8,56 @@ import {
   Sparkles,
   Compass,
   Lightbulb,
+  Pencil,
+  CheckCircle2,
+  ThumbsUp,
+  ArrowUpRight,
 } from 'lucide-react';
-import { useUserProfile } from '@/api/auth';
+import { useUserProfile, useUpdateProfile } from '@/api/auth';
 import { useChallenges } from '@/api/challenges';
+import { useUserSolutions } from '@/api/solutions';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { ChallengeCard } from '@/components/ChallengeCard';
-import { formatDate } from '@/lib/utils';
+import { formatDate, timeAgo } from '@/lib/utils';
+import { EFFORT_LEVELS } from '@/lib/constants';
 
 export const Profile: React.FC = () => {
   const { username } = useParams<{ username: string }>();
   const { user: currentUser } = useAuth();
+  const { toast } = useToast();
 
   const targetUsername = username || currentUser?.username;
   const { data: userProfile, isLoading, isError } = useUserProfile(targetUsername);
+  const updateProfileMutation = useUpdateProfile();
 
-  // Fetch challenges authored by this user
+  const [editOpen, setEditOpen] = useState(false);
+  const [bio, setBio] = useState('');
+  const [location, setLocation] = useState('');
+  const [avatar, setAvatar] = useState('');
+
+  // Fetch challenges and solutions authored by this user
   const { data: userChallengesData, isLoading: challengesLoading } = useChallenges(
     { author: targetUsername },
     !!targetUsername
   );
+  const { data: userSolutions = [], isLoading: solutionsLoading } =
+    useUserSolutions(targetUsername);
 
   if (isLoading) {
     return (
@@ -62,7 +89,43 @@ export const Profile: React.FC = () => {
     );
   }
 
+  const isOwnProfile = currentUser?.username === userProfile.username;
   const userChallenges = userChallengesData?.results || [];
+
+  const handleOpenEdit = () => {
+    setBio(userProfile.bio || '');
+    setLocation(userProfile.location || '');
+    setAvatar(userProfile.avatar || '');
+    setEditOpen(true);
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProfileMutation.mutate(
+      {
+        bio: bio.trim(),
+        location: location.trim(),
+        avatar: avatar.trim() || null,
+      },
+      {
+        onSuccess: () => {
+          toast({
+            title: 'Profile updated',
+            description: 'Your civic profile changes have been saved.',
+            variant: 'success',
+          });
+          setEditOpen(false);
+        },
+        onError: () => {
+          toast({
+            title: 'Could not update profile',
+            description: 'Please check your inputs and try again.',
+            variant: 'error',
+          });
+        },
+      }
+    );
+  };
 
   return (
     <div className="container max-w-5xl py-10 px-4 space-y-8">
@@ -88,13 +151,28 @@ export const Profile: React.FC = () => {
                     Verified Contributor
                   </Badge>
                 )}
+                {isOwnProfile && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleOpenEdit}
+                    className="h-7 gap-1.5 rounded-lg text-xs"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    <span>Edit Profile</span>
+                  </Button>
+                )}
               </div>
 
-              {userProfile.bio && (
+              {userProfile.bio ? (
                 <p className="text-sm text-muted-foreground max-w-lg leading-relaxed">
                   {userProfile.bio}
                 </p>
-              )}
+              ) : isOwnProfile ? (
+                <p className="text-xs italic text-muted-foreground">
+                  Add a short bio to let neighbors know your civic interests.
+                </p>
+              ) : null}
 
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs text-muted-foreground pt-1">
                 {userProfile.location && (
@@ -125,7 +203,7 @@ export const Profile: React.FC = () => {
           </div>
         </div>
 
-        {/* Badges Placeholder Showcase */}
+        {/* Badges Showcase */}
         <div className="mt-8 pt-6 border-t border-border/60 space-y-3">
           <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
             <Award className="h-4 w-4 text-amber-500" />
@@ -154,14 +232,14 @@ export const Profile: React.FC = () => {
 
       {/* Profile Activity Tabs */}
       <Tabs defaultValue="challenges" className="space-y-6">
-        <TabsList className="grid grid-cols-2 w-72">
+        <TabsList className="grid grid-cols-2 w-80">
           <TabsTrigger value="challenges" className="gap-2">
             <Compass className="h-4 w-4" />
-            <span>Challenges</span>
+            <span>Challenges ({userChallenges.length})</span>
           </TabsTrigger>
           <TabsTrigger value="solutions" className="gap-2">
             <Lightbulb className="h-4 w-4" />
-            <span>Solutions</span>
+            <span>Solutions ({userSolutions.length})</span>
           </TabsTrigger>
         </TabsList>
 
@@ -190,15 +268,125 @@ export const Profile: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="solutions" className="pt-2">
-          <div className="p-12 text-center border rounded-2xl bg-card space-y-2">
-            <Lightbulb className="h-8 w-8 text-amber-500 mx-auto" />
-            <p className="text-sm font-semibold">Active Solution Proposals</p>
-            <p className="text-xs text-muted-foreground">
-              Participating in discussions and proposing actionable steps for the community.
-            </p>
-          </div>
+          {solutionsLoading ? (
+            <div className="space-y-4">
+              {[1, 2].map((i) => (
+                <Skeleton key={i} className="h-32 rounded-2xl" />
+              ))}
+            </div>
+          ) : userSolutions.length === 0 ? (
+            <div className="p-12 text-center border rounded-2xl bg-card space-y-2">
+              <Lightbulb className="h-8 w-8 text-amber-500 mx-auto" />
+              <p className="text-sm font-semibold">No solution proposals yet</p>
+              <p className="text-xs text-muted-foreground">
+                Action plans proposed by {userProfile.username} will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {userSolutions.map((sol) => {
+                const effort =
+                  EFFORT_LEVELS.find((e) => e.value === sol.effort_level) || EFFORT_LEVELS[1];
+                return (
+                  <Link
+                    key={sol.id}
+                    to={`/challenges/${sol.challenge}`}
+                    className="block rounded-2xl border border-border/80 bg-card p-5 shadow-sm hover:border-primary/40 hover:shadow-md transition-all group"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>For challenge:</span>
+                        <span className="font-semibold text-primary group-hover:underline inline-flex items-center gap-1">
+                          {sol.challenge_title || `Challenge #${sol.challenge}`}
+                          <ArrowUpRight className="h-3 w-3" />
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {sol.is_accepted && (
+                          <Badge className="bg-emerald-600 text-white gap-1 text-[11px]">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Accepted
+                          </Badge>
+                        )}
+                        <span
+                          className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${effort.color}`}
+                        >
+                          {effort.label}
+                        </span>
+                      </div>
+                    </div>
+
+                    <h4 className="font-bold text-base text-foreground group-hover:text-primary transition-colors mb-1">
+                      {sol.title}
+                    </h4>
+                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                      {sol.summary}
+                    </p>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/50">
+                      <span>Proposed {timeAgo(sol.created_at)}</span>
+                      <span className="inline-flex items-center gap-1 font-semibold text-foreground">
+                        <ThumbsUp className="h-3.5 w-3.5" />
+                        {sol.score} score
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Civic Profile</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="profile-location">Neighborhood / Location</Label>
+              <Input
+                id="profile-location"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="e.g. East Ward, Downtown"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="profile-bio">Bio</Label>
+              <Textarea
+                id="profile-bio"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="Tell neighbors what civic topics you care about..."
+                rows={4}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="profile-avatar">Avatar Image URL (Optional)</Label>
+              <Input
+                id="profile-avatar"
+                type="url"
+                value={avatar}
+                onChange={(e) => setAvatar(e.target.value)}
+                placeholder="https://example.com/avatar.jpg"
+              />
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateProfileMutation.isPending}>
+                {updateProfileMutation.isPending ? 'Saving...' : 'Save Profile'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

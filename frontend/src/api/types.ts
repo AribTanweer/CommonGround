@@ -61,6 +61,7 @@ export interface ChallengeCreatePayload {
 export interface Solution {
   id: number;
   challenge: number;
+  challenge_title?: string;
   author: User;
   title: string;
   summary: string;
