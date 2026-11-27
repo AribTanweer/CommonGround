@@ -312,7 +312,13 @@ export const ChallengeDetail: React.FC = () => {
 
                 <Dialog open={proposeOpen} onOpenChange={setProposeOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" variant="cta" className="gap-1.5 rounded-xl shadow-sm">
+                    <Button
+                      size="sm"
+                      variant="cta"
+                      disabled={challenge.status === 'closed'}
+                      title={challenge.status === 'closed' ? 'This challenge is closed' : 'Propose a solution'}
+                      className="gap-1.5 rounded-xl shadow-sm"
+                    >
                       <PlusCircle className="h-4 w-4" />
                       <span>Propose Solution</span>
                     </Button>
@@ -405,7 +411,13 @@ export const ChallengeDetail: React.FC = () => {
                 <ThumbsUp className={`h-4 w-4 ${isSupported ? 'fill-current' : ''}`} />
                 <span>{isSupported ? 'Supported' : 'Support Challenge'}</span>
               </span>
-              <span className="rounded-lg bg-background/20 px-2 py-0.5 text-xs font-bold">
+              <span
+                className={`rounded-lg px-2 py-0.5 text-xs font-bold ${
+                  isSupported
+                    ? 'bg-primary-foreground/20 text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+              >
                 {challenge.support_count}
               </span>
             </Button>
@@ -425,6 +437,8 @@ export const ChallengeDetail: React.FC = () => {
             <Button
               variant="cta"
               onClick={() => setProposeOpen(true)}
+              disabled={challenge.status === 'closed'}
+              title={challenge.status === 'closed' ? 'This challenge is closed' : 'Propose a solution'}
               className="w-full justify-start gap-2 rounded-xl shadow-sm"
             >
               <PlusCircle className="h-4 w-4" />
@@ -453,7 +467,7 @@ export const ChallengeDetail: React.FC = () => {
                 </select>
               )}
             </div>
-            <StatusStepper status={challenge.status} />
+            <StatusStepper status={challenge.status} orientation="vertical" />
           </div>
 
           {/* Quick Stats Card */}
