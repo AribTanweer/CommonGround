@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Globe2, Lock, User as UserIcon, AlertCircle, ArrowRight } from 'lucide-react';
+import { Globe2, Lock, User as UserIcon, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
+import { extractApiError } from '@/lib/authValidation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 export const Login: React.FC = () => {
   const { login } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [username, setUsername] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ identifier?: string; password?: string }>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -20,23 +25,37 @@ export const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password) {
-      setError('Please enter both username and password.');
+    const nextErrors: { identifier?: string; password?: string } = {};
+    if (!identifier.trim()) {
+      nextErrors.identifier = 'Username or email is required.';
+    }
+    if (!password) {
+      nextErrors.password = 'Password is required.';
+    }
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
+      setError('Please enter your credentials to continue.');
       return;
     }
 
+    setFieldErrors({});
     setError(null);
     setLoading(true);
 
     try {
-      await login(username.trim(), password);
+      await login(identifier.trim(), password);
+      toast({
+        title: 'Welcome back',
+        description: 'You are now signed in to CommonGround.',
+        variant: 'success',
+      });
       navigate(from, { replace: true });
-    } catch (err: any) {
-      const msg =
-        err?.response?.data?.detail ||
-        err?.response?.data?.non_field_errors?.[0] ||
-        'Invalid username or password. Please try again.';
-      setError(msg);
+    } catch (err) {
+      const { summary } = extractApiError(
+        err,
+        'Invalid username/email or password. Please try again.'
+      );
+      setError(summary);
     } finally {
       setLoading(false);
     }
@@ -52,7 +71,7 @@ export const Login: React.FC = () => {
               Welcome back
             </h1>
             <p className="text-sm text-muted-foreground">
-              Enter your credentials to access your CommonGround account
+              Sign in with your username or email to access your CommonGround account
             </p>
           </div>
 
@@ -63,39 +82,69 @@ export const Login: React.FC = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            <div className="space-y-1.5">
+              <Label htmlFor="identifier">Username or Email</Label>
               <div className="relative">
                 <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="username"
+                  id="identifier"
                   type="text"
-                  placeholder="e.g. alex_civic"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="pl-10"
+                  placeholder="e.g. alex_civic or alex@example.com"
+                  value={identifier}
+                  onChange={(e) => {
+                    setIdentifier(e.target.value);
+                    if (fieldErrors.identifier) setFieldErrors((p) => ({ ...p, identifier: undefined }));
+                    if (error) setError(null);
+                  }}
+                  className={`pl-10 ${fieldErrors.identifier ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                  autoComplete="username"
                   required
                 />
               </div>
+              {fieldErrors.identifier && (
+                <p className="text-xs text-destructive">{fieldErrors.identifier}</p>
+              )}
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
+                  Forgot password?
+                </Link>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: undefined }));
+                    if (error) setError(null);
+                  }}
+                  className={`pl-10 pr-10 ${fieldErrors.password ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                  autoComplete="current-password"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
+              {fieldErrors.password && (
+                <p className="text-xs text-destructive">{fieldErrors.password}</p>
+              )}
             </div>
 
             <Button
@@ -109,7 +158,7 @@ export const Login: React.FC = () => {
           </form>
 
           <p className="text-center text-sm text-muted-foreground">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link to="/register" className="font-semibold text-primary hover:underline">
               Create an account
             </Link>
@@ -131,7 +180,7 @@ export const Login: React.FC = () => {
             Community-Powered Impact
           </div>
           <blockquote className="text-2xl font-semibold leading-relaxed">
-            "When everyday citizens have a structured way to identify challenges and propose concrete solutions, cities transform from the inside out."
+            &ldquo;When everyday citizens have a structured way to identify challenges and propose concrete solutions, cities transform from the inside out.&rdquo;
           </blockquote>
           <div>
             <p className="font-bold">Collaborative Civic Platform</p>

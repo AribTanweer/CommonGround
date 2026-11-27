@@ -15,6 +15,12 @@ const Notifications = lazy(() => import('./pages/Notifications').then((m) => ({ 
 const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
 const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
 const Register = lazy(() => import('./pages/Register').then((m) => ({ default: m.Register })));
+const ForgotPassword = lazy(() =>
+  import('./pages/ForgotPassword').then((m) => ({ default: m.ForgotPassword }))
+);
+const ResetPassword = lazy(() =>
+  import('./pages/ResetPassword').then((m) => ({ default: m.ResetPassword }))
+);
 
 const PageLoader = () => (
   <div className="container max-w-5xl py-12 px-4 space-y-6">
@@ -82,6 +88,8 @@ export const AppRoutes: React.FC = () => {
 
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

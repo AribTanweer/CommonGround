@@ -19,8 +19,38 @@ export const useLogin = () => {
 
 export const useRegister = () => {
   return useMutation({
-    mutationFn: async (payload: { username: string; email: string; password: string; bio?: string; location?: string }) => {
+    mutationFn: async (payload: {
+      username: string;
+      email: string;
+      password: string;
+      password2?: string;
+      bio?: string;
+      location?: string;
+    }) => {
       const { data } = await apiClient.post('/auth/register/', payload);
+      return data;
+    },
+  });
+};
+
+export const useRequestPasswordReset = () => {
+  return useMutation({
+    mutationFn: async (email: string): Promise<{ detail: string; dev_reset_url?: string }> => {
+      const { data } = await apiClient.post('/auth/password-reset/', { email });
+      return data;
+    },
+  });
+};
+
+export const useConfirmPasswordReset = () => {
+  return useMutation({
+    mutationFn: async (payload: {
+      uid: string;
+      token: string;
+      new_password: string;
+      confirm_password: string;
+    }): Promise<{ detail: string }> => {
+      const { data } = await apiClient.post('/auth/password-reset/confirm/', payload);
       return data;
     },
   });

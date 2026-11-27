@@ -7,7 +7,14 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
-  register: (payload: { username: string; email: string; password: string; bio?: string; location?: string }) => Promise<void>;
+  register: (payload: {
+    username: string;
+    email: string;
+    password: string;
+    password2?: string;
+    bio?: string;
+    location?: string;
+  }) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -86,12 +93,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     username: string;
     email: string;
     password: string;
+    password2?: string;
     bio?: string;
     location?: string;
   }) => {
     await apiClient.post('/auth/register/', {
       ...payload,
-      password2: payload.password,
+      password2: payload.password2 ?? payload.password,
     });
     // Automatically log in after registration
     await login(payload.username, payload.password);

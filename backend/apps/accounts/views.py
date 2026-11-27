@@ -1,12 +1,83 @@
 from rest_framework.views import APIView
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework_simplejwt.views import TokenObtainPairView
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
 from django.db.models import Count
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
-from .serializers import RegisterSerializer, UserProfileSerializer, PublicUserSerializer
+from .serializers import (
+    CustomTokenObtainPairSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
+    PublicUserSerializer,
+    RegisterSerializer,
+    UserProfileSerializer,
+)
 
 User = get_user_model()
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data["email"]
+
+        user = User.objects.filter(email__iexact=email, is_active=True).first()
+        dev_reset_url = None
+        if user:
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            reset_url = f"{settings.FRONTEND_URL}/reset-password?uid={uid}&token={token}"
+            if settings.DEBUG:
+                dev_reset_url = reset_url
+
+            send_mail(
+                subject="Reset your CommonGround password",
+                message=(
+                    f"Hi {user.username},\n\n"
+                    f"We received a request to reset your CommonGround password. "
+                    f"Use the link below to set a new password:\n\n"
+                    f"{reset_url}\n\n"
+                    f"If you did not request this, you can safely ignore this email."
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=True,
+            )
+
+        payload = {
+            "detail": "If an account with that email exists, a password reset link has been sent."
+        }
+        if dev_reset_url:
+            payload["dev_reset_url"] = dev_reset_url
+        return Response(payload, status=status.HTTP_200_OK)
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
+        user.set_password(serializer.validated_data["new_password"])
+        user.save(update_fields=["password"])
+        return Response(
+            {"detail": "Your password has been reset successfully. You can now sign in."},
+            status=status.HTTP_200_OK,
+        )
 
 
 class RegisterView(generics.CreateAPIView):
