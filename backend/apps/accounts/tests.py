@@ -72,8 +72,10 @@ class AccountsAuthTests(APITestCase):
         res_req = self.client.post(self.reset_url, {"email": "alex@example.com"})
         self.assertEqual(res_req.status_code, status.HTTP_200_OK)
         self.assertEqual(len(mail.outbox), 1)
+        self.assertTrue(mail.outbox[0].alternatives)
         body = mail.outbox[0].body
         self.assertIn("/reset-password?uid=", body)
+        self.assertIn("30 minutes", body)
 
         # Extract uid & token from email body
         query = body.split("/reset-password?")[1].splitlines()[0]

@@ -70,7 +70,7 @@ export const ForgotPassword: React.FC = () => {
                   Check your inbox
                 </h1>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  If an account exists for <span className="font-semibold text-foreground">{email.trim()}</span>, we&apos;ve sent a password reset link. Please check your spam folder if you don&apos;t see it within a minute.
+                  If an account exists for <span className="font-semibold text-foreground">{email.trim()}</span>, we&apos;ve sent a password reset link (valid for 30 minutes). Please check your spam folder if you don&apos;t see it within a minute.
                 </p>
               </div>
 

@@ -39,14 +39,24 @@ export function extractApiError(err: any, fallback: string): {
   summary: string;
   fields: Record<string, string>;
 } {
+  if (err?.response?.status === 429) {
+    return {
+      summary: 'Too many attempts. Please wait a few minutes and try again.',
+      fields: {},
+    };
+  }
+
   const data = err?.response?.data;
   if (!data || typeof data !== 'object') {
     return { summary: fallback, fields: {} };
   }
 
+  const source =
+    data.errors && typeof data.errors === 'object' ? data.errors : data;
+
   const fields: Record<string, string> = {};
-  for (const [key, val] of Object.entries(data)) {
-    if (key === 'detail' || key === 'non_field_errors') continue;
+  for (const [key, val] of Object.entries(source)) {
+    if (key === 'detail' || key === 'non_field_errors' || key === 'errors') continue;
     if (Array.isArray(val) && val.length > 0) {
       fields[key] = String(val[0]);
     } else if (typeof val === 'string') {
@@ -54,10 +64,12 @@ export function extractApiError(err: any, fallback: string): {
     }
   }
 
+  const detailStr = typeof data.detail === 'string' ? data.detail : '';
   const summary =
-    (typeof data.detail === 'string' && data.detail) ||
+    (detailStr && detailStr !== 'Validation error.' ? detailStr : '') ||
     (Array.isArray(data.non_field_errors) && data.non_field_errors[0]) ||
     Object.values(fields)[0] ||
+    detailStr ||
     fallback;
 
   return { summary, fields };

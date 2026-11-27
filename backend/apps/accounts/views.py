@@ -1,3 +1,4 @@
+import logging
 from rest_framework.views import APIView
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
@@ -5,9 +6,10 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 from django.db.models import Count
 from django.utils.encoding import force_bytes
+from django.utils.html import escape
 from django.utils.http import urlsafe_base64_encode
 
 from .serializers import (
@@ -19,15 +21,18 @@ from .serializers import (
     UserProfileSerializer,
 )
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+    throttle_scope = "auth_login"
 
 
 class PasswordResetRequestView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_scope = "password_reset"
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
@@ -43,19 +48,42 @@ class PasswordResetRequestView(APIView):
             if settings.DEBUG:
                 dev_reset_url = reset_url
 
-            send_mail(
-                subject="Reset your CommonGround password",
-                message=(
-                    f"Hi {user.username},\n\n"
-                    f"We received a request to reset your CommonGround password. "
-                    f"Use the link below to set a new password:\n\n"
-                    f"{reset_url}\n\n"
-                    f"If you did not request this, you can safely ignore this email."
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=True,
+            expiry_minutes = max(1, settings.PASSWORD_RESET_TIMEOUT // 60)
+            text_body = (
+                f"Hi {user.username},\n\n"
+                f"We received a request to reset your CommonGround password. "
+                f"Use the link below to set a new password (valid for {expiry_minutes} minutes):\n\n"
+                f"{reset_url}\n\n"
+                f"If you did not request this, you can safely ignore this email."
             )
+            safe_user = escape(user.username)
+            safe_url = escape(reset_url)
+            html_body = (
+                f"<div style=\"font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0f172a;\">"
+                f"<h2 style=\"margin:0 0 12px;color:#4f46e5;\">CommonGround</h2>"
+                f"<p>Hi <strong>{safe_user}</strong>,</p>"
+                f"<p>We received a request to reset your CommonGround password. Click the button below to choose a new password. "
+                f"This link is single-use and expires in <strong>{expiry_minutes} minutes</strong>.</p>"
+                f"<p style=\"margin:24px 0;\"><a href=\"{safe_url}\" "
+                f"style=\"display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;\">"
+                f"Reset Password</a></p>"
+                f"<p style=\"font-size:12px;color:#64748b;\">Or copy this link into your browser:<br/>{safe_url}</p>"
+                f"<hr style=\"border:none;border-top:1px solid #e2e8f0;margin:24px 0;\"/>"
+                f"<p style=\"font-size:12px;color:#64748b;\">If you did not request a password reset, you can safely ignore this email.</p>"
+                f"</div>"
+            )
+
+            try:
+                msg = EmailMultiAlternatives(
+                    subject="Reset your CommonGround password",
+                    body=text_body,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    to=[user.email],
+                )
+                msg.attach_alternative(html_body, "text/html")
+                msg.send(fail_silently=False)
+            except Exception:
+                logger.exception("Failed to send password reset email to user_id=%s", user.pk)
 
         payload = {
             "detail": "If an account with that email exists, a password reset link has been sent."
@@ -67,6 +95,7 @@ class PasswordResetRequestView(APIView):
 
 class PasswordResetConfirmView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_scope = "password_reset"
 
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
@@ -84,6 +113,7 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = [permissions.AllowAny]
     serializer_class = RegisterSerializer
+    throttle_scope = "auth_register"
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
