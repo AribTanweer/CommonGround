@@ -53,7 +53,6 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             variant={variant === 'destructive' ? 'destructive' : 'default'}
             onClick={() => {
               onConfirm();
-              onOpenChange(false);
             }}
             disabled={isPending}
           >

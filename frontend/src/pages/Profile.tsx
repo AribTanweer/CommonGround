@@ -145,6 +145,12 @@ export const Profile: React.FC = () => {
                 <h1 className="text-2xl font-extrabold text-foreground">
                   {userProfile.username}
                 </h1>
+                {userProfile.is_email_verified && (
+                  <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1 text-xs">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Email Verified
+                  </Badge>
+                )}
                 {userProfile.reputation >= 50 && (
                   <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1 text-xs">
                     <ShieldCheck className="h-3.5 w-3.5" />
@@ -152,15 +158,22 @@ export const Profile: React.FC = () => {
                   </Badge>
                 )}
                 {isOwnProfile && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleOpenEdit}
-                    className="h-7 gap-1.5 rounded-lg text-xs"
-                  >
-                    <Pencil className="h-3 w-3" />
-                    <span>Edit Profile</span>
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleOpenEdit}
+                      className="h-7 gap-1.5 rounded-lg text-xs"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      <span>Edit Profile</span>
+                    </Button>
+                    <Link to="/settings">
+                      <Button variant="ghost" size="sm" className="h-7 gap-1 rounded-lg text-xs">
+                        <span>{userProfile.is_email_verified ? 'Security' : 'Verify Email'}</span>
+                      </Button>
+                    </Link>
+                  </>
                 )}
               </div>
 

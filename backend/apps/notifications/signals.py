@@ -1,10 +1,37 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.conf import settings
+from django.core.mail import send_mail
+import logging
 
 from apps.solutions.models import Solution
 from apps.engagement.models import Comment, Vote
 from apps.challenges.models import Follow
 from .models import Notification
+
+logger = logging.getLogger(__name__)
+
+
+@receiver(post_save, sender=Notification)
+def email_notification(sender, instance, created, **kwargs):
+    if not created:
+        return
+    recipient = instance.recipient
+    if not recipient.email_notifications_enabled or not recipient.is_email_verified or not recipient.email:
+        return
+    challenge_title = instance.challenge.title if instance.challenge_id else "a community discussion"
+    subject = f"CommonGround: {instance.actor.username} {instance.verb}"
+    url = f"{settings.FRONTEND_URL}/challenges/{instance.challenge_id}" if instance.challenge_id else settings.FRONTEND_URL
+    message = (
+        f"Hi {recipient.username},\n\n"
+        f"{instance.actor.username} {instance.verb} {challenge_title}.\n"
+        f"See the update: {url}\n\n"
+        "You can change email notification preferences in Account Settings."
+    )
+    try:
+        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [recipient.email], fail_silently=False)
+    except Exception:
+        logger.exception("Failed to email notification_id=%s", instance.pk)
 
 
 @receiver(post_save, sender=Solution)

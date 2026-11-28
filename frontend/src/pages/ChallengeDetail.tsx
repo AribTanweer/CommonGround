@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ThumbsUp,
   Bookmark,
@@ -13,12 +13,16 @@ import {
   ShieldCheck,
   ChevronLeft,
   Flag,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import {
   useChallenge,
   useSupportChallenge,
   useFollowChallenge,
   useUpdateChallengeStatus,
+  useUpdateChallenge,
+  useDeleteChallenge,
 } from '@/api/challenges';
 import { useSolutions } from '@/api/solutions';
 import { useComments } from '@/api/engagement';
@@ -30,6 +34,10 @@ import { CommentThread } from '@/components/CommentThread';
 import { ReportDialog } from '@/components/ReportDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -38,6 +46,7 @@ import { STATUS_CONFIG, getCategoryColor } from '@/lib/constants';
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -46,10 +55,16 @@ import { ProposeSolutionForm } from './ProposeSolution';
 
 export const ChallengeDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [proposeOpen, setProposeOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editLocation, setEditLocation] = useState('');
 
   const { data: challenge, isLoading, isError } = useChallenge(id);
   const { data: solutions = [], isLoading: solutionsLoading } = useSolutions(challenge?.id);
@@ -60,6 +75,8 @@ export const ChallengeDetail: React.FC = () => {
   const supportMutation = useSupportChallenge(challenge?.id || 0);
   const followMutation = useFollowChallenge(challenge?.id || 0);
   const statusMutation = useUpdateChallengeStatus(challenge?.id || 0);
+  const updateChallengeMutation = useUpdateChallenge(challenge?.id || 0);
+  const deleteChallengeMutation = useDeleteChallenge(challenge?.id || 0);
 
   if (isLoading) {
     return (
@@ -165,6 +182,63 @@ export const ChallengeDetail: React.FC = () => {
     });
   };
 
+  const handleOpenEdit = () => {
+    setEditTitle(challenge.title);
+    setEditDescription(challenge.description);
+    setEditLocation(challenge.location || '');
+    setEditOpen(true);
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTitle.trim() || !editDescription.trim()) return;
+    updateChallengeMutation.mutate(
+      {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        location: editLocation.trim(),
+      },
+      {
+        onSuccess: () => {
+          setEditOpen(false);
+          toast({
+            title: 'Challenge updated',
+            description: 'Your changes have been saved.',
+            variant: 'success',
+          });
+        },
+        onError: () => {
+          toast({
+            title: 'Update failed',
+            description: 'Could not save challenge changes.',
+            variant: 'error',
+          });
+        },
+      }
+    );
+  };
+
+  const handleDeleteChallenge = () => {
+    deleteChallengeMutation.mutate(undefined, {
+      onSuccess: () => {
+        setDeleteConfirmOpen(false);
+        toast({
+          title: 'Challenge deleted',
+          description: 'The challenge has been removed.',
+          variant: 'success',
+        });
+        navigate('/explore');
+      },
+      onError: () => {
+        toast({
+          title: 'Delete failed',
+          description: 'Could not delete this challenge.',
+          variant: 'error',
+        });
+      },
+    });
+  };
+
   return (
     <div className="container max-w-6xl py-8 px-4 space-y-6">
       {/* Back button & Breadcrumb */}
@@ -178,6 +252,28 @@ export const ChallengeDetail: React.FC = () => {
         </Link>
 
         <div className="flex items-center gap-2">
+          {isAuthor && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleOpenEdit}
+                className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                <span>Edit</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setDeleteConfirmOpen(true)}
+                className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Delete</span>
+              </Button>
+            </>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -506,6 +602,64 @@ export const ChallengeDetail: React.FC = () => {
         onOpenChange={setReportOpen}
         targetType="challenge"
         targetId={challenge.id}
+      />
+
+      {/* Edit Challenge Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Challenge</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveEdit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-ch-title">Title</Label>
+              <Input
+                id="edit-ch-title"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-ch-desc">Description</Label>
+              <Textarea
+                id="edit-ch-desc"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={5}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-ch-location">Location (Optional)</Label>
+              <Input
+                id="edit-ch-location"
+                value={editLocation}
+                onChange={(e) => setEditLocation(e.target.value)}
+                placeholder="e.g. Elm Street & 4th Ave"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateChallengeMutation.isPending}>
+                {updateChallengeMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Delete this challenge?"
+        description="This will permanently remove the challenge along with its proposals and discussion."
+        confirmLabel="Delete Challenge"
+        variant="destructive"
+        isPending={deleteChallengeMutation.isPending}
+        onConfirm={handleDeleteChallenge}
       />
     </div>
   );

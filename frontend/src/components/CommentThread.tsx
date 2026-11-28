@@ -133,6 +133,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
   const handleDelete = () => {
     deleteCommentMutation.mutate(comment.id, {
       onSuccess: () => {
+        setDeleteOpen(false);
         toast({ title: 'Comment deleted', variant: 'default' });
       },
     });

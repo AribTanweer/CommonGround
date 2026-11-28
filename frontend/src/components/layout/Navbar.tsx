@@ -12,6 +12,7 @@ import {
   Globe2,
   Bell,
   Search,
+  Settings,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -186,6 +187,10 @@ export const Navbar: React.FC = () => {
                 <DropdownMenuItem onClick={() => navigate(`/profile/${user.username}`)} className="cursor-pointer gap-2">
                   <UserIcon className="h-4 w-4" />
                   <span>My Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer gap-2">
+                  <Settings className="h-4 w-4" />
+                  <span>Account &amp; Security</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/notifications')} className="cursor-pointer justify-between">
                   <span className="flex items-center gap-2">

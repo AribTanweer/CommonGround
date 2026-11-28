@@ -76,6 +76,12 @@ class SolutionVoteView(generics.GenericAPIView):
     def post(self, request, pk=None):
         solution = get_object_or_404(Solution, pk=pk)
 
+        if not request.user.is_email_verified:
+            return Response(
+                {"detail": "Verify your email address before voting on solutions."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         if solution.author == request.user:
             return Response(
                 {"detail": "You cannot vote on your own solution."},

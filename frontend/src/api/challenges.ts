@@ -53,6 +53,43 @@ export const useCreateChallenge = () => {
   });
 };
 
+export const useUpdateChallenge = (challengeId: number) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: {
+      title?: string;
+      description?: string;
+      location?: string;
+    }) => {
+      const { data } = await apiClient.patch<Challenge>(`/challenges/${challengeId}/`, payload);
+      return data;
+    },
+    onSuccess: (updated) => {
+      if (updated?.id) {
+        queryClient.setQueryData(['challenge', String(updated.id)], updated);
+        if (updated.slug) {
+          queryClient.setQueryData(['challenge', updated.slug], updated);
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['challenge'] });
+      queryClient.invalidateQueries({ queryKey: ['challenges'] });
+    },
+  });
+};
+
+export const useDeleteChallenge = (challengeId: number) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      await apiClient.delete(`/challenges/${challengeId}/`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['challenges'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
+    },
+  });
+};
+
 export const useUpdateChallengeStatus = (challengeId: number) => {
   const queryClient = useQueryClient();
   const key = String(challengeId);

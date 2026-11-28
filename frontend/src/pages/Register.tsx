@@ -92,7 +92,7 @@ export const Register: React.FC = () => {
       });
       toast({
         title: 'Account created',
-        description: `Welcome to CommonGround, ${form.username.trim()}!`,
+        description: `Welcome, ${form.username.trim()}! Check your inbox to verify your email.`,
         variant: 'success',
       });
       navigate('/explore');

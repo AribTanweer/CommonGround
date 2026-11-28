@@ -76,6 +76,12 @@ class ChallengeViewSet(OwnerOnCreateMixin, viewsets.ModelViewSet):
         challenge = self.get_object()
         from apps.engagement.models import Vote
 
+        if not request.user.is_email_verified:
+            return Response(
+                {"detail": "Verify your email address before supporting challenges."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         if challenge.author == request.user:
             return Response(
                 {"detail": "You cannot support your own challenge."},

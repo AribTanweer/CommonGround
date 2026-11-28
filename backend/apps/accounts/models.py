@@ -7,6 +7,8 @@ class User(AbstractUser):
     avatar = models.ImageField(upload_to="avatars/", blank=True)
     location = models.CharField(max_length=120, blank=True)
     reputation = models.IntegerField(default=0)
+    is_email_verified = models.BooleanField(default=False)
+    email_notifications_enabled = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["-date_joined"]

@@ -56,6 +56,41 @@ export const useConfirmPasswordReset = () => {
   });
 };
 
+export const useVerifyEmail = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { uid: string; token: string }): Promise<{ detail: string }> => {
+      const { data } = await apiClient.post('/auth/verify-email/', payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+    },
+  });
+};
+
+export const useResendVerification = () => {
+  return useMutation({
+    mutationFn: async (): Promise<{ detail: string; dev_verify_url?: string }> => {
+      const { data } = await apiClient.post('/auth/resend-verification/');
+      return data;
+    },
+  });
+};
+
+export const useChangePassword = () => {
+  return useMutation({
+    mutationFn: async (payload: {
+      current_password: string;
+      new_password: string;
+      confirm_password: string;
+    }): Promise<{ detail: string }> => {
+      const { data } = await apiClient.post('/auth/change-password/', payload);
+      return data;
+    },
+  });
+};
+
 export const useCurrentUser = (enabled = true) => {
   return useQuery({
     queryKey: ['currentUser'],

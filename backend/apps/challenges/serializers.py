@@ -54,6 +54,9 @@ class ChallengeDetailSerializer(serializers.ModelSerializer):
     author = UserSummarySerializer(read_only=True)
     author_username = serializers.CharField(source="author.username", read_only=True)
     category = CategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(), write_only=True, required=False, source="category"
+    )
     category_name = serializers.CharField(source="category.name", read_only=True)
     tags = TagSerializer(many=True, read_only=True)
     tag_ids = serializers.PrimaryKeyRelatedField(
@@ -68,7 +71,7 @@ class ChallengeDetailSerializer(serializers.ModelSerializer):
         model = Challenge
         fields = (
             "id", "title", "slug", "description", "author", "author_username",
-            "category", "category_name", "tags", "tag_ids", "location", "image",
+            "category", "category_id", "category_name", "tags", "tag_ids", "location", "image",
             "status", "support_count", "solutions_count",
             "is_following", "is_supported", "has_supported",
             "created_at", "updated_at",

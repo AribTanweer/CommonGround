@@ -13,16 +13,86 @@ from django.utils.html import escape
 from django.utils.http import urlsafe_base64_encode
 
 from .serializers import (
+    ChangePasswordSerializer,
     CustomTokenObtainPairSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     PublicUserSerializer,
     RegisterSerializer,
     UserProfileSerializer,
+    VerifyEmailSerializer,
 )
+from .tokens import email_verification_token_generator
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+
+
+def _send_action_email(
+    *,
+    subject: str,
+    username: str,
+    intro_text: str,
+    cta_label: str,
+    action_url: str,
+    footer_text: str,
+    recipient: str,
+    user_id: int,
+) -> None:
+    """Send a branded HTML + plain-text email without crashing the caller on SMTP errors."""
+    text_body = (
+        f"Hi {username},\n\n"
+        f"{intro_text}\n\n"
+        f"{action_url}\n\n"
+        f"{footer_text}"
+    )
+    safe_user = escape(username)
+    safe_intro = escape(intro_text)
+    safe_cta = escape(cta_label)
+    safe_url = escape(action_url)
+    safe_footer = escape(footer_text)
+    html_body = (
+        f"<div style=\"font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0f172a;\">"
+        f"<h2 style=\"margin:0 0 12px;color:#4f46e5;\">CommonGround</h2>"
+        f"<p>Hi <strong>{safe_user}</strong>,</p>"
+        f"<p>{safe_intro}</p>"
+        f"<p style=\"margin:24px 0;\"><a href=\"{safe_url}\" "
+        f"style=\"display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;\">"
+        f"{safe_cta}</a></p>"
+        f"<p style=\"font-size:12px;color:#64748b;\">Or copy this link into your browser:<br/>{safe_url}</p>"
+        f"<hr style=\"border:none;border-top:1px solid #e2e8f0;margin:24px 0;\"/>"
+        f"<p style=\"font-size:12px;color:#64748b;\">{safe_footer}</p>"
+        f"</div>"
+    )
+    try:
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[recipient],
+        )
+        msg.attach_alternative(html_body, "text/html")
+        msg.send(fail_silently=False)
+    except Exception:
+        logger.exception("Failed to send '%s' email to user_id=%s", subject, user_id)
+
+
+def _send_verification_email(user) -> str:
+    """Generate a single-use email verification URL and send it to the user."""
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = email_verification_token_generator.make_token(user)
+    verify_url = f"{settings.FRONTEND_URL}/verify-email?uid={uid}&token={token}"
+    _send_action_email(
+        subject="Verify your CommonGround email address",
+        username=user.username,
+        intro_text="Welcome to CommonGround! Please verify your email address to confirm your account.",
+        cta_label="Verify Email",
+        action_url=verify_url,
+        footer_text="If you did not create a CommonGround account, you can safely ignore this email.",
+        recipient=user.email,
+        user_id=user.pk,
+    )
+    return verify_url
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -49,41 +119,19 @@ class PasswordResetRequestView(APIView):
                 dev_reset_url = reset_url
 
             expiry_minutes = max(1, settings.PASSWORD_RESET_TIMEOUT // 60)
-            text_body = (
-                f"Hi {user.username},\n\n"
-                f"We received a request to reset your CommonGround password. "
-                f"Use the link below to set a new password (valid for {expiry_minutes} minutes):\n\n"
-                f"{reset_url}\n\n"
-                f"If you did not request this, you can safely ignore this email."
+            _send_action_email(
+                subject="Reset your CommonGround password",
+                username=user.username,
+                intro_text=(
+                    f"We received a request to reset your CommonGround password. "
+                    f"This link is single-use and expires in {expiry_minutes} minutes."
+                ),
+                cta_label="Reset Password",
+                action_url=reset_url,
+                footer_text="If you did not request a password reset, you can safely ignore this email.",
+                recipient=user.email,
+                user_id=user.pk,
             )
-            safe_user = escape(user.username)
-            safe_url = escape(reset_url)
-            html_body = (
-                f"<div style=\"font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0f172a;\">"
-                f"<h2 style=\"margin:0 0 12px;color:#4f46e5;\">CommonGround</h2>"
-                f"<p>Hi <strong>{safe_user}</strong>,</p>"
-                f"<p>We received a request to reset your CommonGround password. Click the button below to choose a new password. "
-                f"This link is single-use and expires in <strong>{expiry_minutes} minutes</strong>.</p>"
-                f"<p style=\"margin:24px 0;\"><a href=\"{safe_url}\" "
-                f"style=\"display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;\">"
-                f"Reset Password</a></p>"
-                f"<p style=\"font-size:12px;color:#64748b;\">Or copy this link into your browser:<br/>{safe_url}</p>"
-                f"<hr style=\"border:none;border-top:1px solid #e2e8f0;margin:24px 0;\"/>"
-                f"<p style=\"font-size:12px;color:#64748b;\">If you did not request a password reset, you can safely ignore this email.</p>"
-                f"</div>"
-            )
-
-            try:
-                msg = EmailMultiAlternatives(
-                    subject="Reset your CommonGround password",
-                    body=text_body,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    to=[user.email],
-                )
-                msg.attach_alternative(html_body, "text/html")
-                msg.send(fail_silently=False)
-            except Exception:
-                logger.exception("Failed to send password reset email to user_id=%s", user.pk)
 
         payload = {
             "detail": "If an account with that email exists, a password reset link has been sent."
@@ -109,6 +157,57 @@ class PasswordResetConfirmView(APIView):
         )
 
 
+class VerifyEmailView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "password_reset"
+
+    def post(self, request):
+        serializer = VerifyEmailSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
+        if not user.is_email_verified:
+            user.is_email_verified = True
+            user.save(update_fields=["is_email_verified"])
+        return Response(
+            {"detail": "Email address verified successfully."},
+            status=status.HTTP_200_OK,
+        )
+
+
+class ResendVerificationView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "password_reset"
+
+    def post(self, request):
+        user = request.user
+        if user.is_email_verified:
+            return Response(
+                {"detail": "Your email address is already verified."},
+                status=status.HTTP_200_OK,
+            )
+        verify_url = _send_verification_email(user)
+        payload = {"detail": "Verification email sent. Please check your inbox."}
+        if settings.DEBUG:
+            payload["dev_verify_url"] = verify_url
+        return Response(payload, status=status.HTTP_200_OK)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "auth_login"
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        user.set_password(serializer.validated_data["new_password"])
+        user.save(update_fields=["password"])
+        return Response(
+            {"detail": "Password updated successfully."},
+            status=status.HTTP_200_OK,
+        )
+
+
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = [permissions.AllowAny]
@@ -119,10 +218,14 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        return Response(
-            {"detail": "Registration successful.", "username": user.username},
-            status=status.HTTP_201_CREATED,
-        )
+        verify_url = _send_verification_email(user)
+        payload = {
+            "detail": "Registration successful. Please check your email to verify your account.",
+            "username": user.username,
+        }
+        if settings.DEBUG:
+            payload["dev_verify_url"] = verify_url
+        return Response(payload, status=status.HTTP_201_CREATED)
 
 
 class MeView(generics.RetrieveUpdateAPIView):

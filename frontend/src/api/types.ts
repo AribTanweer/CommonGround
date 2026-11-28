@@ -8,6 +8,8 @@ export interface User {
   avatar?: string | null;
   location?: string;
   reputation: number;
+  is_email_verified?: boolean;
+  email_notifications_enabled?: boolean;
   date_joined?: string;
   challenges_count?: number;
   solutions_count?: number;

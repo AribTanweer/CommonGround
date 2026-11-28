@@ -6,6 +6,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
+from .tokens import email_verification_token_generator
 
 User = get_user_model()
 
@@ -101,6 +102,42 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return attrs
 
 
+class VerifyEmailSerializer(serializers.Serializer):
+    uid = serializers.CharField(required=True)
+    token = serializers.CharField(required=True)
+
+    def validate(self, attrs):
+        try:
+            user_id = force_str(urlsafe_base64_decode(attrs["uid"]))
+            user = User.objects.get(pk=user_id, is_active=True)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            raise serializers.ValidationError({"token": "This verification link is invalid or has expired."})
+
+        if not email_verification_token_generator.check_token(user, attrs["token"]):
+            raise serializers.ValidationError({"token": "This verification link is invalid or has expired."})
+
+        attrs["user"] = user
+        return attrs
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True, required=True)
+    new_password = serializers.CharField(write_only=True, required=True)
+    confirm_password = serializers.CharField(write_only=True, required=True)
+
+    def validate_current_password(self, value):
+        user = self.context["request"].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Current password is incorrect.")
+        return value
+
+    def validate(self, attrs):
+        if attrs["new_password"] != attrs["confirm_password"]:
+            raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
+        validate_password(attrs["new_password"], user=self.context["request"].user)
+        return attrs
+
+
 class UserProfileSerializer(serializers.ModelSerializer):
     challenges_count = serializers.SerializerMethodField()
     solutions_count = serializers.SerializerMethodField()
@@ -109,9 +146,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             "id", "username", "email", "bio", "avatar", "location",
-            "reputation", "date_joined", "challenges_count", "solutions_count",
+            "reputation", "is_email_verified", "email_notifications_enabled", "date_joined",
+            "challenges_count", "solutions_count",
         )
-        read_only_fields = ("id", "username", "reputation", "date_joined")
+        read_only_fields = ("id", "username", "reputation", "is_email_verified", "date_joined")
 
     def get_challenges_count(self, obj):
         return obj.challenges.count()
@@ -128,7 +166,8 @@ class PublicUserSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             "id", "username", "bio", "avatar", "location",
-            "reputation", "date_joined", "challenges_count", "solutions_count",
+            "reputation", "is_email_verified", "date_joined",
+            "challenges_count", "solutions_count",
         )
 
     def get_challenges_count(self, obj):

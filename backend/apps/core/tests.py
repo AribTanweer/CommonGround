@@ -15,13 +15,16 @@ class CommonGroundBusinessRulesTestCase(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.user1 = User.objects.create_user(
-            username="alice", email="alice@test.com", password="password123", reputation=0
+            username="alice", email="alice@test.com", password="password123", reputation=0,
+            is_email_verified=True,
         )
         self.user2 = User.objects.create_user(
-            username="bob", email="bob@test.com", password="password123", reputation=0
+            username="bob", email="bob@test.com", password="password123", reputation=0,
+            is_email_verified=True,
         )
         self.user3 = User.objects.create_user(
-            username="carol", email="carol@test.com", password="password123", reputation=0
+            username="carol", email="carol@test.com", password="password123", reputation=0,
+            is_email_verified=True,
         )
 
         self.category = Category.objects.create(name="Civic", slug="civic")

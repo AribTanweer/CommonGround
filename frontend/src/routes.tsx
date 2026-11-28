@@ -21,6 +21,12 @@ const ForgotPassword = lazy(() =>
 const ResetPassword = lazy(() =>
   import('./pages/ResetPassword').then((m) => ({ default: m.ResetPassword }))
 );
+const VerifyEmail = lazy(() =>
+  import('./pages/VerifyEmail').then((m) => ({ default: m.VerifyEmail }))
+);
+const AccountSettings = lazy(() =>
+  import('./pages/AccountSettings').then((m) => ({ default: m.AccountSettings }))
+);
 
 const PageLoader = () => (
   <div className="container max-w-5xl py-12 px-4 space-y-6">
@@ -84,12 +90,21 @@ export const AppRoutes: React.FC = () => {
             }
           />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <AccountSettings />
+              </ProtectedRoute>
+            }
+          />
         </Route>
 
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

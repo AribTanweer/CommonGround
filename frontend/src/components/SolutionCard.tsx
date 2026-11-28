@@ -76,6 +76,7 @@ export const SolutionCard: React.FC<SolutionCardProps> = ({
   const handleAccept = () => {
     acceptMutation.mutate(undefined, {
       onSuccess: () => {
+        setAcceptConfirmOpen(false);
         toast({
           title: 'Solution accepted',
           description: 'The challenge has moved to In Progress.',
