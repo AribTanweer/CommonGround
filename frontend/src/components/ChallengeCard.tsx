@@ -67,8 +67,7 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, variant
 
   if (variant === 'list') {
     return (
-      <Link
-        to={`/challenges/${challenge.id}`}
+      <article
         className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-border/70 bg-card p-4 sm:p-5 shadow-sm transition-all duration-200 hover:border-primary/40 hover:shadow-md"
       >
         <div className="flex items-start gap-4 min-w-0 flex-1">
@@ -98,8 +97,10 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, variant
               )}
             </div>
 
-            <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">
-              {challenge.title}
+            <h3 className="text-base font-bold text-foreground transition-colors line-clamp-1">
+              <Link to={`/challenges/${challenge.id}`} className="rounded-sm hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                {challenge.title}
+              </Link>
             </h3>
             <p className="text-xs text-muted-foreground line-clamp-1">{challenge.description}</p>
           </div>
@@ -137,13 +138,12 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, variant
             <span>{challenge.support_count}</span>
           </button>
         </div>
-      </Link>
+      </article>
     );
   }
 
   return (
-    <Link
-      to={`/challenges/${challenge.id}`}
+    <article
       className="group relative rounded-2xl border border-border/70 bg-card p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-primary/40 flex flex-col justify-between"
     >
       <div>
@@ -189,8 +189,10 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, variant
         )}
 
         {/* Title */}
-        <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug mb-2">
-          {challenge.title}
+        <h3 className="text-lg font-bold text-foreground transition-colors line-clamp-2 leading-snug mb-2">
+          <Link to={`/challenges/${challenge.id}`} className="rounded-sm hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            {challenge.title}
+          </Link>
         </h3>
 
         {/* Description snippet */}
@@ -298,6 +300,6 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, variant
           </div>
         </div>
       </div>
-    </Link>
+    </article>
   );
 };

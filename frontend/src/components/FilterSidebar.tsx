@@ -1,9 +1,9 @@
 import React from 'react';
 import { Filter, RotateCcw } from 'lucide-react';
 import { Category, Tag } from '@/api/types';
-import { STATUS_STEPS } from '@/lib/constants';
-import { Badge } from './ui/badge';
+import { STATUS_CONFIG, STATUS_STEPS } from '@/lib/constants';
 import { Button } from './ui/button';
+import { SearchBar } from './SearchBar';
 
 interface FilterSidebarProps {
   categories: Category[];
@@ -11,9 +11,11 @@ interface FilterSidebarProps {
   selectedCategory?: string;
   selectedStatus?: string;
   selectedTag?: string;
+  selectedLocation?: string;
   onCategoryChange: (slug?: string) => void;
   onStatusChange: (status?: string) => void;
   onTagChange: (slug?: string) => void;
+  onLocationChange: (location?: string) => void;
   onReset: () => void;
   className?: string;
 }
@@ -24,13 +26,15 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
   selectedCategory,
   selectedStatus,
   selectedTag,
+  selectedLocation,
   onCategoryChange,
   onStatusChange,
   onTagChange,
+  onLocationChange,
   onReset,
   className = '',
 }) => {
-  const hasActiveFilters = !!selectedCategory || !!selectedStatus || !!selectedTag;
+  const hasActiveFilters = !!selectedCategory || !!selectedStatus || !!selectedTag || !!selectedLocation;
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -52,6 +56,18 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
         )}
       </div>
 
+      <div>
+        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
+          City or neighborhood
+        </h4>
+        <SearchBar
+          value={selectedLocation || ''}
+          onChange={(value) => onLocationChange(value || undefined)}
+          placeholder="e.g. Indiranagar, Bengaluru"
+          className="w-full"
+        />
+      </div>
+
       {/* Status Filter */}
       <div>
         <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
@@ -61,6 +77,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
           <button
             type="button"
             onClick={() => onStatusChange(undefined)}
+            aria-pressed={!selectedStatus}
             className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center justify-between ${
               !selectedStatus
                 ? 'bg-primary/10 text-primary font-bold'
@@ -69,13 +86,14 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
           >
             <span>All Statuses</span>
           </button>
-          {STATUS_STEPS.map((step) => {
+          {[...STATUS_STEPS, { key: 'closed' as const, label: STATUS_CONFIG.closed.label }].map((step) => {
             const isSelected = selectedStatus === step.key;
             return (
               <button
                 key={step.key}
                 type="button"
                 onClick={() => onStatusChange(isSelected ? undefined : step.key)}
+                aria-pressed={isSelected}
                 className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center justify-between ${
                   isSelected
                     ? 'bg-primary/10 text-primary font-bold'
@@ -98,6 +116,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
           <button
             type="button"
             onClick={() => onCategoryChange(undefined)}
+            aria-pressed={!selectedCategory}
             className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center justify-between ${
               !selectedCategory
                 ? 'bg-primary/10 text-primary font-bold'
@@ -113,6 +132,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
                 key={cat.id}
                 type="button"
                 onClick={() => onCategoryChange(isSelected ? undefined : cat.slug)}
+                aria-pressed={isSelected}
                 className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center justify-between ${
                   isSelected
                     ? 'bg-primary/10 text-primary font-bold'
@@ -136,14 +156,15 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
             {tags.map((tag) => {
               const isSelected = selectedTag === tag.slug;
               return (
-                <Badge
+                <button
                   key={tag.id}
-                  variant={isSelected ? 'default' : 'outline'}
+                  type="button"
+                  aria-pressed={isSelected}
                   onClick={() => onTagChange(isSelected ? undefined : tag.slug)}
-                  className="cursor-pointer text-[11px] font-normal transition-all hover:border-primary/60"
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isSelected ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-muted-foreground hover:border-primary/60 hover:text-foreground'}`}
                 >
                   #{tag.name}
-                </Badge>
+                </button>
               );
             })}
           </div>

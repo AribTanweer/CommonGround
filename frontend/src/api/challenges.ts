@@ -7,6 +7,7 @@ export interface ChallengeQueryParams {
   author?: string;
   status?: string;
   tag?: string;
+  location?: string;
   search?: string;
   ordering?: string;
   page?: number;

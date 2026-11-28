@@ -33,6 +33,7 @@ export const Explore: React.FC = () => {
   const category = searchParams.get('category') || undefined;
   const status = searchParams.get('status') || undefined;
   const tag = searchParams.get('tag') || undefined;
+  const location = searchParams.get('location') || undefined;
   const search = searchParams.get('search') || '';
   const ordering = searchParams.get('ordering') || 'trending';
   const page = parseInt(searchParams.get('page') || '1', 10);
@@ -49,6 +50,7 @@ export const Explore: React.FC = () => {
     category,
     status,
     tag,
+    location,
     search: search || undefined,
     ordering,
     page,
@@ -87,7 +89,7 @@ export const Explore: React.FC = () => {
   const activeCategoryLabel = categories.find((c) => c.slug === category || String(c.id) === category)?.name || category;
   const activeStatusLabel = status ? (STATUS_CONFIG[status as ChallengeStatus]?.label || status) : undefined;
   const activeTagLabel = tags.find((t) => t.slug === tag || String(t.id) === tag)?.name || tag;
-  const hasActiveFilters = Boolean(category || status || tag || search);
+  const hasActiveFilters = Boolean(category || status || tag || location || search);
 
   return (
     <div className="container px-4 py-8 max-w-7xl">
@@ -126,37 +128,34 @@ export const Explore: React.FC = () => {
                 className="lg:hidden w-full sm:w-auto gap-2 border-border/80"
               >
                 <SlidersHorizontal className="h-4 w-4" />
-                <span>Filters {(category || status || tag) ? '• Active' : ''}</span>
+                <span>Filters {hasActiveFilters ? `(${[category, status, tag, location, search].filter(Boolean).length})` : ''}</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-80">
+            <SheetContent side="left" className="w-80 flex flex-col">
               <SheetHeader>
                 <SheetTitle className="text-left font-bold">Filters</SheetTitle>
               </SheetHeader>
-              <div className="mt-4">
+              <div className="mt-4 flex-1 overflow-y-auto pr-1">
                 <FilterSidebar
                   categories={categories}
                   tags={tags}
                   selectedCategory={category}
                   selectedStatus={status}
                   selectedTag={tag}
-                  onCategoryChange={(cat) => {
-                    updateParam('category', cat);
-                    setMobileFilterOpen(false);
-                  }}
-                  onStatusChange={(st) => {
-                    updateParam('status', st);
-                    setMobileFilterOpen(false);
-                  }}
-                  onTagChange={(tg) => {
-                    updateParam('tag', tg);
-                    setMobileFilterOpen(false);
-                  }}
+                  selectedLocation={location}
+                  onCategoryChange={(cat) => updateParam('category', cat)}
+                  onStatusChange={(st) => updateParam('status', st)}
+                  onTagChange={(tg) => updateParam('tag', tg)}
+                  onLocationChange={(loc) => updateParam('location', loc)}
                   onReset={() => {
                     handleResetFilters();
-                    setMobileFilterOpen(false);
                   }}
                 />
+              </div>
+              <div className="mt-4 border-t border-border/70 pt-4">
+                <Button className="w-full" onClick={() => setMobileFilterOpen(false)}>
+                  Show {totalCount} {totalCount === 1 ? 'challenge' : 'challenges'}
+                </Button>
               </div>
             </SheetContent>
           </Sheet>
@@ -258,6 +257,16 @@ export const Explore: React.FC = () => {
                 <X className="h-3 w-3" />
               </button>
             )}
+            {location && (
+              <button
+                type="button"
+                onClick={() => updateParam('location', undefined)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold hover:bg-primary/20 transition-colors"
+              >
+                <span>Location: {location}</span>
+                <X className="h-3 w-3" />
+              </button>
+            )}
             {search && (
               <button
                 type="button"
@@ -290,9 +299,11 @@ export const Explore: React.FC = () => {
               selectedCategory={category}
               selectedStatus={status}
               selectedTag={tag}
+              selectedLocation={location}
               onCategoryChange={(cat) => updateParam('category', cat)}
               onStatusChange={(st) => updateParam('status', st)}
               onTagChange={(tg) => updateParam('tag', tg)}
+              onLocationChange={(loc) => updateParam('location', loc)}
               onReset={handleResetFilters}
             />
           </div>
