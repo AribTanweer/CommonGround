@@ -1,8 +1,9 @@
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
 from .models import Notification
-from .serializers import NotificationSerializer, MarkReadSerializer
+from .serializers import NotificationSerializer, MarkReadSerializer, UnreadCountSerializer
 
 
 class NotificationListView(generics.ListAPIView):
@@ -48,6 +49,7 @@ class UnreadCountView(APIView):
     """GET /notifications/unread-count/"""
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(responses=UnreadCountSerializer)
     def get(self, request):
         count = Notification.objects.filter(recipient=request.user, is_read=False).count()
         return Response({"unread_count": count})

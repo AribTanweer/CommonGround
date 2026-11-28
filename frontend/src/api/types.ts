@@ -7,6 +7,8 @@ export interface User {
   bio?: string;
   avatar?: string | null;
   location?: string;
+  show_location_publicly?: boolean;
+  profile_is_public?: boolean;
   reputation: number;
   is_email_verified?: boolean;
   email_notifications_enabled?: boolean;
@@ -37,6 +39,7 @@ export interface Challenge {
   category: Category;
   tags: Tag[];
   location?: string;
+  space?: CommunitySpace | null;
   image?: string | null;
   status: 'open' | 'proposed' | 'in_progress' | 'resolved' | 'closed';
   support_count: number;
@@ -84,7 +87,42 @@ export interface Solution {
   user_vote?: number; // 1, -1, or 0
   created_at: string;
   revisions_count?: number;
+  responsible_party?: string;
+  target_date?: string | null;
+  outcome_notes?: string;
+  actual_cost?: string;
+  duration_days?: number | null;
+  outcome_evidence_url?: string;
+  completed_at?: string | null;
 }
+
+export interface CommunitySpace {
+  id: number;
+  name: string;
+  slug: string;
+  kind: 'neighborhood' | 'organization';
+  description: string;
+  location: string;
+  is_private: boolean;
+  creator: User;
+  member_count: number;
+  is_member: boolean;
+  created_at: string;
+}
+
+export interface SolutionMilestone {
+  id: number;
+  title: string;
+  due_date?: string | null;
+  is_complete: boolean;
+  completed_at?: string | null;
+  created_by: User;
+  created_at: string;
+}
+
+export interface VolunteerSignup { id: number; user: User; contribution: string; note: string; created_at: string }
+export interface ResourceOffer { id: number; user: User; resource: string; details: string; created_at: string }
+export interface SolutionQuestion { id: number; author: User; question: string; answer: string; answered_at?: string | null; created_at: string }
 
 export interface SolutionCreatePayload {
   title: string;

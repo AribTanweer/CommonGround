@@ -20,6 +20,7 @@ import {
 } from '@/api/solutions';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
+import { SolutionCoordinationPanel } from './SolutionCoordinationPanel';
 import {
   Dialog,
   DialogContent,
@@ -33,12 +34,14 @@ interface SolutionCardProps {
   solution: Solution;
   challengeOwnerId?: number;
   challengeId: number | string;
+  challengeResolved?: boolean;
 }
 
 export const SolutionCard: React.FC<SolutionCardProps> = ({
   solution,
   challengeOwnerId,
   challengeId,
+  challengeResolved = false,
 }) => {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -297,6 +300,8 @@ export const SolutionCard: React.FC<SolutionCardProps> = ({
           </div>
         </div>
       </div>
+
+      {solution.is_accepted && <SolutionCoordinationPanel solution={solution} challengeId={Number(challengeId)} challengeOwnerId={challengeOwnerId} challengeResolved={challengeResolved} />}
 
       {/* Edit Proposal Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

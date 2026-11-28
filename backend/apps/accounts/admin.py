@@ -7,5 +7,5 @@ from .models import User
 class UserAdmin(BaseUserAdmin):
     list_display = ("username", "email", "reputation", "is_staff")
     fieldsets = BaseUserAdmin.fieldsets + (
-        ("Profile", {"fields": ("bio", "avatar", "location", "reputation")}),
+        ("Profile", {"fields": ("bio", "avatar", "location", "show_location_publicly", "profile_is_public", "reputation")}),
     )

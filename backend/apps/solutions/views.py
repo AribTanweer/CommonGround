@@ -3,15 +3,215 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.db.models import F
+from django.utils import timezone
+from django.db.models import Q
 
 from apps.core.permissions import IsOwnerOrReadOnly
 from apps.challenges.models import Challenge, ChallengeUpdate, Follow
-from .models import Solution, SolutionRevision
+from apps.challenges.space_access import visible_challenges
+from .models import Solution, SolutionRevision, SolutionMilestone, VolunteerSignup, ResourceOffer, SolutionQuestion
 from .serializers import (
     SolutionListSerializer, SolutionCreateSerializer,
     SolutionDetailSerializer, SolutionRevisionSerializer,
     SolutionVoteInputSerializer,
+    SolutionMilestoneSerializer, VolunteerSignupSerializer, ResourceOfferSerializer,
+    SolutionQuestionSerializer, SolutionOutcomeSerializer,
+    SolutionProgressSerializer,
+    SolutionQuestionAnswerSerializer,
 )
+
+
+def can_manage_solution(user, solution):
+    return user.is_authenticated and user in (solution.author, solution.challenge.author)
+
+
+def visible_solutions(user):
+    return Solution.objects.filter(challenge__in=visible_challenges(user))
+
+
+class SolutionMilestoneListCreateView(generics.ListCreateAPIView):
+    serializer_class = SolutionMilestoneSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    queryset = SolutionMilestone.objects.none()
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return SolutionMilestone.objects.none()
+        return SolutionMilestone.objects.filter(solution__in=visible_solutions(self.request.user), solution_id=self.kwargs["pk"]).select_related("created_by")
+
+    def perform_create(self, serializer):
+        solution = get_object_or_404(visible_solutions(self.request.user), pk=self.kwargs["pk"], is_accepted=True)
+        if not can_manage_solution(self.request.user, solution):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only the challenge owner and solution lead can manage milestones.")
+        serializer.save(solution=solution, created_by=self.request.user)
+
+
+class SolutionMilestoneDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = SolutionMilestoneSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return SolutionMilestone.objects.none()
+        return SolutionMilestone.objects.filter(solution__in=visible_solutions(self.request.user)).select_related("solution__challenge", "solution__author")
+
+    def perform_update(self, serializer):
+        milestone = self.get_object()
+        if not can_manage_solution(self.request.user, milestone.solution):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only the challenge owner and solution lead can manage milestones.")
+        complete = serializer.validated_data.get("is_complete", milestone.is_complete)
+        serializer.save(completed_at=timezone.now() if complete else None)
+
+    def perform_destroy(self, instance):
+        if not can_manage_solution(self.request.user, instance.solution):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only the challenge owner and solution lead can manage milestones.")
+        instance.delete()
+
+
+class SolutionParticipationListCreateView(generics.ListCreateAPIView):
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    model = None
+    serializer_class = None
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return self.model.objects.none()
+        return self.model.objects.filter(solution__in=visible_solutions(self.request.user), solution_id=self.kwargs["pk"]).select_related("user")
+
+    def perform_create(self, serializer):
+        solution = get_object_or_404(visible_solutions(self.request.user), pk=self.kwargs["pk"], is_accepted=True)
+        if not self.request.user.is_email_verified:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Verify your email before joining solution coordination.")
+        if self.model is VolunteerSignup:
+            signup, created = VolunteerSignup.objects.get_or_create(
+                solution=solution,
+                user=self.request.user,
+                defaults={
+                    "contribution": serializer.validated_data["contribution"],
+                    "note": serializer.validated_data.get("note", ""),
+                },
+            )
+            if not created:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({"detail": "You have already signed up for this solution."})
+            serializer.instance = signup
+            return
+        serializer.save(solution=solution, user=self.request.user)
+
+
+class VolunteerListCreateView(SolutionParticipationListCreateView):
+    model = VolunteerSignup
+    serializer_class = VolunteerSignupSerializer
+
+
+class ResourceOfferListCreateView(SolutionParticipationListCreateView):
+    model = ResourceOffer
+    serializer_class = ResourceOfferSerializer
+
+
+class UserParticipationDeleteView(generics.DestroyAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    model = None
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return self.model.objects.none()
+        return self.model.objects.filter(user=self.request.user, solution__in=visible_solutions(self.request.user))
+
+
+class VolunteerWithdrawView(UserParticipationDeleteView):
+    model = VolunteerSignup
+    serializer_class = VolunteerSignupSerializer
+
+
+class ResourceOfferRetractView(UserParticipationDeleteView):
+    model = ResourceOffer
+    serializer_class = ResourceOfferSerializer
+
+
+class SolutionQuestionListCreateView(generics.ListCreateAPIView):
+    serializer_class = SolutionQuestionSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    queryset = SolutionQuestion.objects.none()
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return SolutionQuestion.objects.none()
+        return SolutionQuestion.objects.filter(solution__in=visible_solutions(self.request.user), solution_id=self.kwargs["pk"]).select_related("author")
+
+    def perform_create(self, serializer):
+        solution = get_object_or_404(visible_solutions(self.request.user), pk=self.kwargs["pk"])
+        if not self.request.user.is_email_verified:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Verify your email before asking a structured question.")
+        serializer.save(solution=solution, author=self.request.user)
+
+
+class SolutionQuestionAnswerView(generics.UpdateAPIView):
+    serializer_class = SolutionQuestionAnswerSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["patch", "options", "head"]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return SolutionQuestion.objects.none()
+        return SolutionQuestion.objects.filter(solution__in=visible_solutions(self.request.user)).select_related("solution__author")
+
+    def get_object(self):
+        obj = super().get_object()
+        if obj.solution.author_id != self.request.user.id:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only the solution author can answer this question.")
+        return obj
+
+    def perform_update(self, serializer):
+        serializer.save(answered_at=timezone.now())
+
+
+class SolutionOutcomeView(generics.UpdateAPIView):
+    serializer_class = SolutionOutcomeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["patch", "options", "head"]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Solution.objects.none()
+        return visible_solutions(self.request.user).select_related("challenge")
+
+    def get_object(self):
+        solution = super().get_object()
+        if not solution.is_accepted:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only accepted solutions can record outcomes.")
+        if solution.challenge.author_id != self.request.user.id:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only the challenge owner can record the outcome.")
+        if solution.challenge.status != Challenge.Status.RESOLVED:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Resolve the challenge before recording its outcome.")
+        return solution
+
+
+class SolutionProgressView(generics.UpdateAPIView):
+    serializer_class = SolutionProgressSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["patch", "options", "head"]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Solution.objects.none()
+        return visible_solutions(self.request.user).select_related("challenge")
+
+    def get_object(self):
+        solution = super().get_object()
+        if not solution.is_accepted or not can_manage_solution(self.request.user, solution):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only the challenge owner and accepted-solution lead can manage progress.")
+        return solution
 
 
 class SolutionListView(generics.ListAPIView):
@@ -20,7 +220,7 @@ class SolutionListView(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        qs = Solution.objects.select_related("author", "challenge").order_by("-created_at")
+        qs = visible_solutions(self.request.user).select_related("author", "challenge").order_by("-created_at")
         author = self.request.query_params.get("author")
         if author:
             qs = qs.filter(author__username__iexact=author)
@@ -35,7 +235,7 @@ class ChallengeSolutionListCreateView(generics.ListCreateAPIView):
         if getattr(self, "swagger_fake_view", False):
             return Solution.objects.none()
         return (
-            Solution.objects
+            visible_solutions(self.request.user)
             .filter(challenge_id=self.kwargs["challenge_pk"])
             .select_related("author", "challenge")
         )
@@ -46,15 +246,17 @@ class ChallengeSolutionListCreateView(generics.ListCreateAPIView):
         return SolutionListSerializer
 
     def perform_create(self, serializer):
-        challenge = get_object_or_404(Challenge, pk=self.kwargs["challenge_pk"])
+        challenge = get_object_or_404(visible_challenges(self.request.user), pk=self.kwargs["challenge_pk"])
         serializer.save(author=self.request.user, challenge=challenge)
 
 
 class SolutionDetailView(generics.RetrieveUpdateAPIView):
     """GET/PATCH /solutions/{pk}/ — PATCH creates a revision."""
-    queryset = Solution.objects.select_related("author", "challenge").prefetch_related("revisions__editor")
     serializer_class = SolutionDetailSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+
+    def get_queryset(self):
+        return visible_solutions(self.request.user).select_related("author", "challenge").prefetch_related("revisions__editor")
 
     def perform_update(self, serializer):
         solution = self.get_object()
@@ -74,7 +276,7 @@ class SolutionVoteView(generics.GenericAPIView):
     serializer_class = SolutionVoteInputSerializer
 
     def post(self, request, pk=None):
-        solution = get_object_or_404(Solution, pk=pk)
+        solution = get_object_or_404(visible_solutions(request.user), pk=pk)
 
         if not request.user.is_email_verified:
             return Response(
@@ -144,7 +346,7 @@ class SolutionAcceptView(generics.GenericAPIView):
 
     def post(self, request, pk=None):
         solution = get_object_or_404(
-            Solution.objects.select_related("challenge__author"), pk=pk
+            visible_solutions(request.user).select_related("challenge__author"), pk=pk
         )
         challenge = solution.challenge
 
@@ -207,6 +409,6 @@ class SolutionRevisionListView(generics.ListAPIView):
             return SolutionRevision.objects.none()
         return (
             SolutionRevision.objects
-            .filter(solution_id=self.kwargs["pk"])
+            .filter(solution__in=visible_solutions(self.request.user), solution_id=self.kwargs["pk"])
             .select_related("editor")
         )

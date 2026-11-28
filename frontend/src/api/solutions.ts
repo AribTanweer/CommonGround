@@ -1,6 +1,75 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './axios';
-import { PaginatedResponse, Solution, SolutionCreatePayload, SolutionRevision } from './types';
+import { PaginatedResponse, ResourceOffer, Solution, SolutionCreatePayload, SolutionMilestone, SolutionQuestion, SolutionRevision, VolunteerSignup } from './types';
+
+const useSolutionList = <T,>(solutionId: number, resource: string) => useQuery({
+  queryKey: ['solution-coordination', solutionId, resource],
+  queryFn: async (): Promise<T[]> => (await apiClient.get<T[]>(`/solutions/${solutionId}/${resource}/`)).data,
+  enabled: !!solutionId,
+});
+const useSolutionCreate = <T, P>(solutionId: number, resource: string) => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: P): Promise<T> => (await apiClient.post<T>(`/solutions/${solutionId}/${resource}/`, payload)).data,
+    onSuccess: () => client.invalidateQueries({ queryKey: ['solution-coordination', solutionId, resource] }),
+  });
+};
+
+export const useSolutionMilestones = (id: number) => useSolutionList<SolutionMilestone>(id, 'milestones');
+export const useCreateMilestone = (id: number) => useSolutionCreate<SolutionMilestone, { title: string; due_date?: string }>(id, 'milestones');
+export const useUpdateMilestone = (id: number) => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ milestoneId, ...payload }: { milestoneId: number; is_complete?: boolean; title?: string; due_date?: string | null }) =>
+      (await apiClient.patch<SolutionMilestone>(`/milestones/${milestoneId}/`, payload)).data,
+    onSuccess: () => client.invalidateQueries({ queryKey: ['solution-coordination', id, 'milestones'] }),
+  });
+};
+export const useVolunteerSignups = (id: number) => useSolutionList<VolunteerSignup>(id, 'volunteers');
+export const useSignUpToVolunteer = (id: number) => useSolutionCreate<VolunteerSignup, { contribution: string; note?: string }>(id, 'volunteers');
+export const useResourceOffers = (id: number) => useSolutionList<ResourceOffer>(id, 'resources');
+export const useOfferResource = (id: number) => useSolutionCreate<ResourceOffer, { resource: string; details?: string }>(id, 'resources');
+const useWithdrawParticipation = (solutionId: number, type: 'volunteers' | 'resources') => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (recordId: number) => apiClient.delete(`/${type}/${recordId}/`),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['solution-coordination', solutionId, type] }),
+  });
+};
+export const useWithdrawVolunteer = (id: number) => useWithdrawParticipation(id, 'volunteers');
+export const useRetractResource = (id: number) => useWithdrawParticipation(id, 'resources');
+export const useSolutionQuestions = (id: number) => useSolutionList<SolutionQuestion>(id, 'questions');
+export const useAskSolutionQuestion = (id: number) => useSolutionCreate<SolutionQuestion, { question: string }>(id, 'questions');
+export const useAnswerSolutionQuestion = (solutionId: number) => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ questionId, answer }: { questionId: number; answer: string }) =>
+      (await apiClient.patch<SolutionQuestion>(`/questions/${questionId}/answer/`, { answer })).data,
+    onSuccess: () => client.invalidateQueries({ queryKey: ['solution-coordination', solutionId, 'questions'] }),
+  });
+};
+export const useUpdateSolutionProgress = (solutionId: number, challengeId: number | string) => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { responsible_party?: string; target_date?: string | null }) =>
+      (await apiClient.patch<Solution>(`/solutions/${solutionId}/progress/`, payload)).data,
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ['solutions', String(challengeId)] });
+      client.invalidateQueries({ queryKey: ['solution', solutionId] });
+    },
+  });
+};
+export const useUpdateSolutionOutcome = (solutionId: number, challengeId: number | string) => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { outcome_notes: string; actual_cost?: string; duration_days?: number | null; outcome_evidence_url?: string }) =>
+      (await apiClient.patch<Solution>(`/solutions/${solutionId}/outcome/`, payload)).data,
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ['solutions', String(challengeId)] });
+      client.invalidateQueries({ queryKey: ['challenge'] });
+    },
+  });
+};
 
 export const useSolutions = (challengeId: number | string | undefined) => {
   const key = challengeId !== undefined ? String(challengeId) : undefined;

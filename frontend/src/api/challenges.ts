@@ -1,6 +1,53 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './axios';
-import { Category, Challenge, ChallengeUpdate, PaginatedResponse, Tag } from './types';
+import { Category, Challenge, ChallengeUpdate, CommunitySpace, PaginatedResponse, Tag } from './types';
+
+export const useSpaces = () => useQuery({
+  queryKey: ['spaces'],
+  queryFn: async (): Promise<CommunitySpace[]> => {
+    const { data } = await apiClient.get<CommunitySpace[] | PaginatedResponse<CommunitySpace>>('/spaces/');
+    return Array.isArray(data) ? data : data.results;
+  },
+});
+
+export const useCreateSpace = () => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: Pick<CommunitySpace, 'name' | 'kind' | 'description' | 'location' | 'is_private'>) => {
+      const { data } = await apiClient.post<CommunitySpace>('/spaces/', payload);
+      return data;
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: ['spaces'] }),
+  });
+};
+
+export const useJoinSpace = () => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (slug: string) => apiClient.post(`/spaces/${slug}/join/`),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['spaces'] }),
+  });
+};
+
+export interface SpaceInvitation { id: number; space: string; slug: string; invited_by: string }
+export const useSpaceInvitations = (enabled = true) => useQuery({
+  queryKey: ['space-invitations'],
+  queryFn: async (): Promise<SpaceInvitation[]> => (await apiClient.get('/spaces/invitations/')).data,
+  enabled,
+});
+export const useAcceptSpaceInvitation = () => {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => apiClient.post(`/spaces/invitations/${id}/accept/`),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ['spaces'] });
+      client.invalidateQueries({ queryKey: ['space-invitations'] });
+    },
+  });
+};
+export const useInviteToSpace = (slug: string) => useMutation({
+  mutationFn: async (username: string) => apiClient.post(`/spaces/${slug}/invite/`, { username }),
+});
 
 export interface ChallengeQueryParams {
   category?: string;
@@ -8,6 +55,7 @@ export interface ChallengeQueryParams {
   status?: string;
   tag?: string;
   location?: string;
+  space?: string;
   search?: string;
   ordering?: string;
   page?: number;

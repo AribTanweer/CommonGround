@@ -28,7 +28,7 @@ class CommentSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "author", "challenge", "solution", "created_at")
 
-    def get_replies(self, obj):
+    def get_replies(self, obj) -> list:
         # Only nest one level of replies or recursive
         replies = obj.replies.all().select_related("author")
         return CommentReplySerializer(replies, many=True).data

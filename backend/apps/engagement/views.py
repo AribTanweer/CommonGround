@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 
 from apps.challenges.models import Challenge
+from apps.challenges.space_access import can_view_challenge, visible_challenges
 from apps.solutions.models import Solution
 from .models import Comment, Report
 from .serializers import (
@@ -30,9 +31,12 @@ class ChallengeCommentListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Comment.objects.none()
+        challenge = get_object_or_404(Challenge.objects.select_related("space"), pk=self.kwargs["challenge_pk"])
+        if not can_view_challenge(self.request.user, challenge):
+            return Comment.objects.none()
         return (
             Comment.objects
-            .filter(challenge_id=self.kwargs["challenge_pk"], parent__isnull=True)
+            .filter(challenge=challenge, parent__isnull=True)
             .select_related("author")
             .prefetch_related("replies__author")
         )
@@ -44,6 +48,9 @@ class ChallengeCommentListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         challenge = get_object_or_404(Challenge, pk=self.kwargs["challenge_pk"])
+        if not can_view_challenge(self.request.user, challenge):
+            from rest_framework.exceptions import NotFound
+            raise NotFound("Challenge not found.")
         serializer.save(author=self.request.user, challenge=challenge)
 
 
@@ -56,7 +63,7 @@ class SolutionCommentListCreateView(generics.ListCreateAPIView):
             return Comment.objects.none()
         return (
             Comment.objects
-            .filter(solution_id=self.kwargs["solution_pk"], parent__isnull=True)
+            .filter(solution_id=self.kwargs["solution_pk"], solution__challenge__in=visible_challenges(self.request.user), parent__isnull=True)
             .select_related("author")
             .prefetch_related("replies__author")
         )
@@ -67,7 +74,7 @@ class SolutionCommentListCreateView(generics.ListCreateAPIView):
         return CommentSerializer
 
     def perform_create(self, serializer):
-        solution = get_object_or_404(Solution, pk=self.kwargs["solution_pk"])
+        solution = get_object_or_404(Solution.objects.filter(challenge__in=visible_challenges(self.request.user)), pk=self.kwargs["solution_pk"])
         serializer.save(author=self.request.user, solution=solution)
 
 

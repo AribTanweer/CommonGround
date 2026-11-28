@@ -1,6 +1,27 @@
 from rest_framework import serializers
 from apps.accounts.serializers import UserSummarySerializer
-from .models import Category, Tag, Challenge, ChallengeUpdate, Follow
+from .models import Category, Tag, Challenge, ChallengeUpdate, Follow, CommunitySpace
+
+
+class CommunitySpaceSerializer(serializers.ModelSerializer):
+    creator = UserSummarySerializer(read_only=True)
+    member_count = serializers.IntegerField(source="memberships.count", read_only=True)
+    is_member = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CommunitySpace
+        fields = ("id", "name", "slug", "kind", "description", "location", "is_private", "creator", "member_count", "is_member", "created_at")
+        read_only_fields = ("id", "slug", "creator", "member_count", "is_member", "created_at")
+
+    def get_is_member(self, obj) -> bool:
+        request = self.context.get("request")
+        return bool(request and request.user.is_authenticated and obj.memberships.filter(user=request.user).exists())
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        if self.instance and request and self.instance.creator != request.user:
+            raise serializers.ValidationError("Only the space creator can edit its details.")
+        return attrs
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -21,6 +42,7 @@ class ChallengeListSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     category_name = serializers.CharField(source="category.name", read_only=True)
     tags = TagSerializer(many=True, read_only=True)
+    space = CommunitySpaceSerializer(read_only=True)
     solutions_count = serializers.SerializerMethodField()
     is_supported = serializers.SerializerMethodField()
     has_supported = serializers.SerializerMethodField()
@@ -29,24 +51,24 @@ class ChallengeListSerializer(serializers.ModelSerializer):
         model = Challenge
         fields = (
             "id", "title", "slug", "description", "author", "author_username",
-            "category", "category_name", "tags", "location", "image",
+            "category", "category_name", "tags", "location", "image", "space",
             "status", "support_count", "solutions_count",
             "is_supported", "has_supported",
             "created_at", "updated_at",
         )
         read_only_fields = ("id", "author", "slug", "support_count", "created_at", "updated_at")
 
-    def get_solutions_count(self, obj):
+    def get_solutions_count(self, obj) -> int:
         return getattr(obj, "_solutions_count", obj.solutions.count())
 
-    def get_is_supported(self, obj):
+    def get_is_supported(self, obj) -> bool:
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             from apps.engagement.models import Vote
             return Vote.objects.filter(user=request.user, challenge=obj).exists()
         return False
 
-    def get_has_supported(self, obj):
+    def get_has_supported(self, obj) -> bool:
         return self.get_is_supported(obj)
 
 
@@ -59,6 +81,7 @@ class ChallengeDetailSerializer(serializers.ModelSerializer):
     )
     category_name = serializers.CharField(source="category.name", read_only=True)
     tags = TagSerializer(many=True, read_only=True)
+    space = CommunitySpaceSerializer(read_only=True)
     tag_ids = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Tag.objects.all(), write_only=True, required=False, source="tags"
     )
@@ -71,30 +94,30 @@ class ChallengeDetailSerializer(serializers.ModelSerializer):
         model = Challenge
         fields = (
             "id", "title", "slug", "description", "author", "author_username",
-            "category", "category_id", "category_name", "tags", "tag_ids", "location", "image",
+            "category", "category_id", "category_name", "tags", "tag_ids", "location", "image", "space",
             "status", "support_count", "solutions_count",
             "is_following", "is_supported", "has_supported",
             "created_at", "updated_at",
         )
         read_only_fields = ("id", "author", "slug", "support_count", "status", "created_at", "updated_at")
 
-    def get_solutions_count(self, obj):
+    def get_solutions_count(self, obj) -> int:
         return obj.solutions.count()
 
-    def get_is_following(self, obj):
+    def get_is_following(self, obj) -> bool:
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             return Follow.objects.filter(user=request.user, challenge=obj).exists()
         return False
 
-    def get_is_supported(self, obj):
+    def get_is_supported(self, obj) -> bool:
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             from apps.engagement.models import Vote
             return Vote.objects.filter(user=request.user, challenge=obj).exists()
         return False
 
-    def get_has_supported(self, obj):
+    def get_has_supported(self, obj) -> bool:
         return self.get_is_supported(obj)
 
 
@@ -105,12 +128,15 @@ class ChallengeCreateSerializer(serializers.ModelSerializer):
     tags = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Tag.objects.all(), write_only=True, required=False
     )
+    space_id = serializers.PrimaryKeyRelatedField(
+        queryset=CommunitySpace.objects.all(), source="space", required=False, allow_null=True, write_only=True
+    )
 
     class Meta:
         model = Challenge
         fields = (
             "id", "title", "description", "category", "tag_ids", "tags",
-            "location", "image",
+            "location", "image", "space_id",
         )
         read_only_fields = ("id",)
 
@@ -118,6 +144,9 @@ class ChallengeCreateSerializer(serializers.ModelSerializer):
         tag_ids = validated_data.pop("tag_ids", [])
         tags = validated_data.pop("tags", [])
         final_tags = tag_ids or tags
+        space = validated_data.get("space")
+        if space and not (space.creator_id == self.context["request"].user.id or space.memberships.filter(user=self.context["request"].user).exists()):
+            raise serializers.ValidationError({"space_id": "Join this space before posting a challenge there."})
         challenge = Challenge.objects.create(**validated_data)
         if final_tags:
             challenge.tags.set(final_tags)

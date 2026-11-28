@@ -10,11 +10,12 @@ class ChallengeFilter(django_filters.FilterSet):
     status = django_filters.CharFilter(field_name="status")
     tag = django_filters.CharFilter(field_name="tags__slug")
     location = django_filters.CharFilter(field_name="location", lookup_expr="icontains")
+    space = django_filters.CharFilter(field_name="space__slug", lookup_expr="iexact")
     search = django_filters.CharFilter(method="filter_search")
 
     class Meta:
         model = Challenge
-        fields = ["category", "category_slug", "author", "status", "tag", "location"]
+        fields = ["category", "category_slug", "author", "status", "tag", "location", "space"]
 
     def filter_category(self, queryset, name, value):
         if str(value).isdigit():

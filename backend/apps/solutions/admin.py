@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Solution, SolutionRevision
+from .models import Solution, SolutionRevision, SolutionMilestone, VolunteerSignup, ResourceOffer, SolutionQuestion
 
 
 @admin.register(Solution)
@@ -11,3 +11,9 @@ class SolutionAdmin(admin.ModelAdmin):
 @admin.register(SolutionRevision)
 class SolutionRevisionAdmin(admin.ModelAdmin):
     list_display = ("solution", "editor", "created_at")
+
+
+admin.site.register(SolutionMilestone)
+admin.site.register(VolunteerSignup)
+admin.site.register(ResourceOffer)
+admin.site.register(SolutionQuestion)

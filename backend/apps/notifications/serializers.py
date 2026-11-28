@@ -33,3 +33,7 @@ class MarkReadSerializer(serializers.Serializer):
         child=serializers.IntegerField(), required=False, allow_empty=True
     )
 
+
+class UnreadCountSerializer(serializers.Serializer):
+    unread_count = serializers.IntegerField()
+

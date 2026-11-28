@@ -27,6 +27,7 @@ const VerifyEmail = lazy(() =>
 const AccountSettings = lazy(() =>
   import('./pages/AccountSettings').then((m) => ({ default: m.AccountSettings }))
 );
+const Spaces = lazy(() => import('./pages/Spaces').then((m) => ({ default: m.Spaces })));
 
 const PageLoader = () => (
   <div className="container max-w-5xl py-12 px-4 space-y-6">
@@ -63,6 +64,7 @@ export const AppRoutes: React.FC = () => {
         <Route element={<Layout />}>
           <Route path="/" element={<Landing />} />
           <Route path="/explore" element={<Explore />} />
+          <Route path="/spaces" element={<Spaces />} />
           <Route path="/challenges/:id" element={<ChallengeDetail />} />
           <Route
             path="/challenges/new"

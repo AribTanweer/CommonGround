@@ -1,11 +1,13 @@
 import random
+from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 
-from apps.challenges.models import Category, Tag, Challenge, ChallengeUpdate, Follow
-from apps.solutions.models import Solution, SolutionRevision
+from apps.challenges.models import Category, Tag, Challenge, ChallengeUpdate, Follow, CommunitySpace, SpaceMembership, SpaceInvitation
+from apps.solutions.models import Solution, SolutionRevision, SolutionMilestone, VolunteerSignup, ResourceOffer, SolutionQuestion
 from apps.engagement.models import Comment, Vote, Report
 from apps.notifications.models import Notification
 
@@ -28,6 +30,12 @@ class Command(BaseCommand):
             User.objects.filter(username__in=DEMO_USERNAMES).values_list("pk", flat=True)
         )
         if demo_user_ids:
+            CommunitySpace.objects.filter(creator_id__in=demo_user_ids).delete()
+            SpaceInvitation.objects.filter(Q(user_id__in=demo_user_ids) | Q(invited_by_id__in=demo_user_ids)).delete()
+            SpaceMembership.objects.filter(user_id__in=demo_user_ids).delete()
+            VolunteerSignup.objects.filter(user_id__in=demo_user_ids).delete()
+            ResourceOffer.objects.filter(user_id__in=demo_user_ids).delete()
+            SolutionQuestion.objects.filter(author_id__in=demo_user_ids).delete()
             Notification.objects.filter(
                 Q(recipient_id__in=demo_user_ids) | Q(actor_id__in=demo_user_ids)
             ).delete()
@@ -143,6 +151,8 @@ class Command(BaseCommand):
             user.location = udata["location"]
             user.reputation = udata["reputation"]
             user.is_email_verified = False
+            user.show_location_publicly = user.username in {"arjun_sharma", "priya_patel", "fatima_khan", "joseph_dsouza"}
+            user.profile_is_public = user.username not in {"tsering_dolma"}
             user.email_notifications_enabled = udata.get("email_notifications_enabled", True)
             user.set_password("password123")
             user.save()
@@ -287,6 +297,21 @@ class Command(BaseCommand):
                 ch.tags.set([tags[ti] for ti in tag_indices if ti < len(tags)])
             challenges.append(ch)
             intended_statuses.append(stat)
+
+        spaces = [
+            CommunitySpace.objects.create(creator=users[0], name="Indiranagar Neighbors", kind="neighborhood", description="Residents coordinating walkability, lighting, waste collection, and safer routes around Indiranagar.", location="Indiranagar, Bengaluru", is_private=False),
+            CommunitySpace.objects.create(creator=users[7], name="Access for All Network", kind="organization", description="A small coalition of disability advocates and local partners coordinating practical accessibility improvements.", location="Multi-city", is_private=True),
+        ]
+        for space, members in ((spaces[0], users[:6]), (spaces[1], [users[7], users[3], users[5], users[9]])):
+            for member in members:
+                SpaceMembership.objects.get_or_create(space=space, user=member)
+        for index in (0, 5, 10):
+            challenges[index].space = spaces[0]
+            challenges[index].save(update_fields=["space"])
+        for index in (6, 14, 20):
+            if index < len(challenges):
+                challenges[index].space = spaces[1]
+                challenges[index].save(update_fields=["space"])
 
         solution_data = [
             ("Deploy solar-powered standalone LED fixtures with smart dimming",
@@ -460,6 +485,22 @@ class Command(BaseCommand):
                 is_accepted=is_accepted,
             )
             solutions.append(sol)
+
+            if sol.is_accepted:
+                sol.responsible_party = ["Ward engineering office", "Green Streets Collective", "Community Health Volunteers"][i % 3]
+                sol.target_date = (sol.created_at.date() + timedelta(days=45 + i)) if sol.created_at else None
+                if challenge.status == Challenge.Status.RESOLVED:
+                    sol.outcome_notes = "Demo outcome: residents report the change is in place. This example is illustrative; live challenges should link to independently checkable evidence."
+                    sol.actual_cost = cost.replace(" estimate", " actual")
+                    sol.duration_days = 35 + i * 3
+                    sol.outcome_evidence_url = f"https://example.com/commonground-demo/{challenge.slug}/outcome"
+                    sol.completed_at = timezone.now()
+                sol.save(update_fields=["responsible_party", "target_date", "outcome_notes", "actual_cost", "duration_days", "outcome_evidence_url", "completed_at"])
+                for step_index, milestone_title in enumerate(("Confirm site and responsibilities", "Complete first implementation phase", "Review results with residents")):
+                    SolutionMilestone.objects.create(solution=sol, title=milestone_title, due_date=sol.created_at.date() + timedelta(days=10 * (step_index + 1)), is_complete=(step_index == 0), completed_at=sol.created_at if step_index == 0 else None, created_by=challenge.author)
+                VolunteerSignup.objects.get_or_create(solution=sol, user=users[(i + 4) % len(users)], defaults={"contribution": "Weekend site walk and resident feedback", "note": "Available Saturday mornings."})
+                ResourceOffer.objects.create(solution=sol, user=users[(i + 5) % len(users)], resource="Portable lighting and safety vests", details="Available for the initial community audit.")
+                SolutionQuestion.objects.create(solution=sol, author=users[(i + 6) % len(users)], question="How will the team maintain this after the initial installation?", answer="The ward team has agreed to include it in the monthly inspection round.", answered_at=sol.created_at)
 
             # Add a revision to some solutions
             if i % 3 == 0:

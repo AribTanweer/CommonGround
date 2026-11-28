@@ -54,6 +54,32 @@ export const AccountSettings: React.FC = () => {
     });
   };
 
+  const handleLocationPrivacy = (enabled: boolean) => {
+    profileMutation.mutate({ show_location_publicly: enabled }, {
+      onSuccess: async () => {
+        await refreshUser();
+        toast({ title: 'Location privacy updated', description: enabled ? 'Your profile location is visible publicly.' : 'Your profile location is private.' });
+      },
+      onError: (err) => {
+        const { summary } = extractApiError(err, 'Could not update location privacy.');
+        toast({ title: 'Update failed', description: summary, variant: 'error' });
+      },
+    });
+  };
+
+  const handleProfilePrivacy = (enabled: boolean) => {
+    profileMutation.mutate({ profile_is_public: enabled }, {
+      onSuccess: async () => {
+        await refreshUser();
+        toast({ title: 'Profile privacy updated', description: enabled ? 'Your bio and avatar are public.' : 'Your bio, avatar, and location are hidden from public profiles.' });
+      },
+      onError: (err) => {
+        const { summary } = extractApiError(err, 'Could not update profile privacy.');
+        toast({ title: 'Update failed', description: summary, variant: 'error' });
+      },
+    });
+  };
+
   const handleResend = () => {
     resendMutation.mutate(undefined, {
       onSuccess: (data) => {
@@ -219,6 +245,21 @@ export const AccountSettings: React.FC = () => {
           <span>Send me email notifications about activity on challenges I follow and content I participate in.</span>
         </label>
         {!user?.is_email_verified && <p className="text-xs text-muted-foreground">Verify your email before activity notifications can be sent.</p>}
+      </div>
+
+      <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><UserIcon className="h-5 w-5" /></div>
+          <div><h2 className="text-base font-bold text-foreground">Profile privacy</h2><p className="text-xs text-muted-foreground">Choose which profile details appear publicly.</p></div>
+        </div>
+        <label className="flex items-start gap-3 cursor-pointer text-sm">
+          <input type="checkbox" className="mt-0.5 h-4 w-4 accent-primary" checked={user?.profile_is_public ?? true} disabled={profileMutation.isPending} onChange={(event) => handleProfilePrivacy(event.target.checked)} />
+          <span>Show my bio and avatar publicly</span>
+        </label>
+        <label className="flex items-start gap-3 cursor-pointer text-sm">
+          <input type="checkbox" className="mt-0.5 h-4 w-4 accent-primary" checked={user?.show_location_publicly ?? false} disabled={profileMutation.isPending} onChange={(event) => handleLocationPrivacy(event.target.checked)} />
+          <span>Show my location publicly on my profile</span>
+        </label>
       </div>
 
       {/* Change Password Card */}

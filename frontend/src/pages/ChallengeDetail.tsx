@@ -15,6 +15,7 @@ import {
   Flag,
   Pencil,
   Trash2,
+  Users,
 } from 'lucide-react';
 import {
   useChallenge,
@@ -370,6 +371,13 @@ export const ChallengeDetail: React.FC = () => {
                   {challenge.location}
                 </span>
               )}
+              {challenge.space && (
+                <Link to="/spaces" className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/40 px-2.5 py-1 text-xs font-medium text-foreground hover:border-primary/40">
+                  {challenge.space.is_private ? <ShieldCheck className="h-3.5 w-3.5 text-primary" /> : <Users className="h-3.5 w-3.5 text-primary" />}
+                  {challenge.space.name}
+                  {challenge.space.is_private && <span className="text-muted-foreground">· private</span>}
+                </Link>
+              )}
             </div>
 
             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground leading-tight">
@@ -518,6 +526,7 @@ export const ChallengeDetail: React.FC = () => {
                         solution={sol}
                         challengeOwnerId={challenge.author?.id}
                         challengeId={challenge.id}
+                        challengeResolved={challenge.status === 'resolved'}
                       />
                     ))}
                   </div>

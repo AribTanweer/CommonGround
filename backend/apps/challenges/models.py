@@ -31,11 +31,58 @@ class Tag(models.Model):
     def __str__(self):
         return self.name
 
+
+class CommunitySpace(models.Model):
+    class Kind(models.TextChoices):
+        NEIGHBORHOOD = "neighborhood", "Neighborhood"
+        ORGANIZATION = "organization", "Organization"
+
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="created_spaces")
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=120, unique=True, blank=True)
+    kind = models.CharField(max_length=20, choices=Kind.choices)
+    description = models.TextField()
+    location = models.CharField(max_length=120, blank=True)
+    is_private = models.BooleanField(default=False)
+    members = models.ManyToManyField(settings.AUTH_USER_MODEL, through="SpaceMembership", related_name="community_spaces")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name)
+            base = slugify(self.name) or "community"
+            slug = base
+            suffix = 1
+            while CommunitySpace.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base}-{suffix}"
+                suffix += 1
+            self.slug = slug
         super().save(*args, **kwargs)
 
+    def __str__(self):
+        return self.name
+
+
+class SpaceMembership(models.Model):
+    space = models.ForeignKey(CommunitySpace, on_delete=models.CASCADE, related_name="memberships")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="space_memberships")
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["space", "user"], name="unique_space_membership")]
+
+
+class SpaceInvitation(models.Model):
+    space = models.ForeignKey(CommunitySpace, on_delete=models.CASCADE, related_name="invitations")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="space_invitations")
+    invited_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="sent_space_invitations")
+    created_at = models.DateTimeField(auto_now_add=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["space", "user"], name="unique_space_invitation")]
 
 class Challenge(models.Model):
     class Status(models.TextChoices):
@@ -54,6 +101,7 @@ class Challenge(models.Model):
     category = models.ForeignKey(Category, on_delete=models.PROTECT)
     tags = models.ManyToManyField(Tag, blank=True)
     location = models.CharField(max_length=120, blank=True)
+    space = models.ForeignKey(CommunitySpace, null=True, blank=True, on_delete=models.SET_NULL, related_name="challenges")
     image = models.ImageField(upload_to="challenges/", blank=True)
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.OPEN

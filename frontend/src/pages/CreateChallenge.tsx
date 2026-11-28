@@ -11,7 +11,7 @@ import {
   AlertCircle,
   Sparkles,
 } from 'lucide-react';
-import { useCategories, useTags, useCreateChallenge } from '@/api/challenges';
+import { useCategories, useTags, useCreateChallenge, useSpaces } from '@/api/challenges';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,7 @@ export const CreateChallenge: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { data: categories = [] } = useCategories();
   const { data: tags = [] } = useTags();
+  const { data: spaces = [] } = useSpaces();
   const createMutation = useCreateChallenge();
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -42,6 +43,7 @@ export const CreateChallenge: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
   const [location, setLocation] = useState('');
+  const [spaceId, setSpaceId] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
@@ -119,6 +121,7 @@ export const CreateChallenge: React.FC = () => {
     if (location.trim()) {
       formData.append('location', location.trim());
     }
+    if (spaceId) formData.append('space_id', spaceId);
     if (imageFile) {
       formData.append('image', imageFile);
     }
@@ -286,6 +289,16 @@ export const CreateChallenge: React.FC = () => {
                   className="pl-10"
                 />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="challenge-space">Community space (Optional)</Label>
+              <select id="challenge-space" value={spaceId} onChange={(event) => setSpaceId(event.target.value)} className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm">
+                <option value="">Share on CommonGround</option>
+                {spaces.filter((space) => space.is_member).map((space) => <option key={space.id} value={space.id}>{space.name}{space.is_private ? ' · Private' : ''}</option>)}
+              </select>
+              <p className="text-xs text-muted-foreground">Challenges in private spaces are visible only to their members. Join a space before posting there.</p>
+              <Link to="/spaces" className="text-xs font-semibold text-primary hover:underline">Browse or create a space</Link>
             </div>
 
             <div className="space-y-2">

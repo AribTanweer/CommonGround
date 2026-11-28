@@ -13,6 +13,7 @@ import {
   Bell,
   Search,
   Settings,
+  Users,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -79,6 +80,7 @@ export const Navbar: React.FC = () => {
 
   const navLinks = [
     { label: 'Explore', path: '/explore', icon: Compass },
+    { label: 'Spaces', path: '/spaces', icon: Users },
     { label: 'Impact', path: '/dashboard', icon: BarChart3 },
   ];
 
@@ -248,6 +250,14 @@ export const Navbar: React.FC = () => {
                 >
                   <Compass className="h-4 w-4" />
                   Explore Challenges
+                </Link>
+                <Link
+                  to="/spaces"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium hover:bg-muted"
+                >
+                  <Users className="h-4 w-4" />
+                  Community Spaces
                 </Link>
                 <Link
                   to="/dashboard"

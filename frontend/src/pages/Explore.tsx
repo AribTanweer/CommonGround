@@ -34,6 +34,7 @@ export const Explore: React.FC = () => {
   const status = searchParams.get('status') || undefined;
   const tag = searchParams.get('tag') || undefined;
   const location = searchParams.get('location') || undefined;
+  const space = searchParams.get('space') || undefined;
   const search = searchParams.get('search') || '';
   const ordering = searchParams.get('ordering') || 'trending';
   const page = parseInt(searchParams.get('page') || '1', 10);
@@ -51,6 +52,7 @@ export const Explore: React.FC = () => {
     status,
     tag,
     location,
+    space,
     search: search || undefined,
     ordering,
     page,
@@ -89,7 +91,7 @@ export const Explore: React.FC = () => {
   const activeCategoryLabel = categories.find((c) => c.slug === category || String(c.id) === category)?.name || category;
   const activeStatusLabel = status ? (STATUS_CONFIG[status as ChallengeStatus]?.label || status) : undefined;
   const activeTagLabel = tags.find((t) => t.slug === tag || String(t.id) === tag)?.name || tag;
-  const hasActiveFilters = Boolean(category || status || tag || location || search);
+  const hasActiveFilters = Boolean(category || status || tag || location || space || search);
 
   return (
     <div className="container px-4 py-8 max-w-7xl">
@@ -128,7 +130,7 @@ export const Explore: React.FC = () => {
                 className="lg:hidden w-full sm:w-auto gap-2 border-border/80"
               >
                 <SlidersHorizontal className="h-4 w-4" />
-                <span>Filters {hasActiveFilters ? `(${[category, status, tag, location, search].filter(Boolean).length})` : ''}</span>
+                <span>Filters {hasActiveFilters ? `(${[category, status, tag, location, space, search].filter(Boolean).length})` : ''}</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-80 flex flex-col">
@@ -265,6 +267,11 @@ export const Explore: React.FC = () => {
               >
                 <span>Location: {location}</span>
                 <X className="h-3 w-3" />
+              </button>
+            )}
+            {space && (
+              <button type="button" onClick={() => updateParam('space', undefined)} className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold hover:bg-primary/20 transition-colors">
+                <span>Space: {space.replace(/-/g, ' ')}</span><X className="h-3 w-3" />
               </button>
             )}
             {search && (

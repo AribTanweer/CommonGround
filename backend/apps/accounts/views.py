@@ -11,6 +11,7 @@ from django.db.models import Count
 from django.utils.encoding import force_bytes
 from django.utils.html import escape
 from django.utils.http import urlsafe_base64_encode
+from drf_spectacular.utils import extend_schema
 
 from .serializers import (
     ChangePasswordSerializer,
@@ -21,6 +22,7 @@ from .serializers import (
     RegisterSerializer,
     UserProfileSerializer,
     VerifyEmailSerializer,
+    ActionMessageSerializer, EmptyRequestSerializer, StatsOverviewSerializer,
 )
 from .tokens import email_verification_token_generator
 
@@ -104,6 +106,7 @@ class PasswordResetRequestView(APIView):
     permission_classes = [permissions.AllowAny]
     throttle_scope = "password_reset"
 
+    @extend_schema(request=PasswordResetRequestSerializer, responses={200: ActionMessageSerializer})
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -145,6 +148,7 @@ class PasswordResetConfirmView(APIView):
     permission_classes = [permissions.AllowAny]
     throttle_scope = "password_reset"
 
+    @extend_schema(request=PasswordResetConfirmSerializer, responses={200: ActionMessageSerializer})
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -161,6 +165,7 @@ class VerifyEmailView(APIView):
     permission_classes = [permissions.AllowAny]
     throttle_scope = "password_reset"
 
+    @extend_schema(request=VerifyEmailSerializer, responses={200: ActionMessageSerializer})
     def post(self, request):
         serializer = VerifyEmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -178,6 +183,7 @@ class ResendVerificationView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     throttle_scope = "password_reset"
 
+    @extend_schema(request=EmptyRequestSerializer, responses={200: ActionMessageSerializer})
     def post(self, request):
         user = request.user
         if user.is_email_verified:
@@ -196,6 +202,7 @@ class ChangePasswordView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     throttle_scope = "auth_login"
 
+    @extend_schema(request=ChangePasswordSerializer, responses={200: ActionMessageSerializer})
     def post(self, request):
         serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
@@ -254,6 +261,7 @@ class LeaderboardView(generics.ListAPIView):
 class StatsOverviewView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(responses=StatsOverviewSerializer)
     def get(self, request):
         from apps.challenges.models import Challenge, Category
         from apps.solutions.models import Solution

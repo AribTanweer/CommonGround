@@ -14,10 +14,18 @@ USERNAME_REGEX = re.compile(r"^[a-zA-Z0-9_.-]{3,30}$")
 
 
 class UserSummarySerializer(serializers.ModelSerializer):
+    avatar = serializers.ImageField(read_only=True)
+
     class Meta:
         model = User
         fields = ("id", "username", "avatar", "reputation")
         read_only_fields = fields
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if not instance.profile_is_public:
+            data["avatar"] = None
+        return data
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -146,32 +154,79 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             "id", "username", "email", "bio", "avatar", "location",
-            "reputation", "is_email_verified", "email_notifications_enabled", "date_joined",
+            "show_location_publicly", "profile_is_public", "reputation", "is_email_verified", "email_notifications_enabled", "date_joined",
             "challenges_count", "solutions_count",
         )
         read_only_fields = ("id", "username", "reputation", "is_email_verified", "date_joined")
 
-    def get_challenges_count(self, obj):
+    def get_challenges_count(self, obj) -> int:
         return obj.challenges.count()
 
-    def get_solutions_count(self, obj):
+    def get_solutions_count(self, obj) -> int:
         return obj.solutions.count()
 
 
 class PublicUserSerializer(serializers.ModelSerializer):
     challenges_count = serializers.SerializerMethodField()
     solutions_count = serializers.SerializerMethodField()
+    location = serializers.SerializerMethodField()
+    bio = serializers.SerializerMethodField()
+    avatar = serializers.ImageField(read_only=True)
 
     class Meta:
         model = User
         fields = (
             "id", "username", "bio", "avatar", "location",
-            "reputation", "is_email_verified", "date_joined",
+            "profile_is_public", "reputation", "is_email_verified", "date_joined",
             "challenges_count", "solutions_count",
         )
 
-    def get_challenges_count(self, obj):
+    def get_challenges_count(self, obj) -> int:
         return obj.challenges.count()
 
-    def get_solutions_count(self, obj):
+    def get_solutions_count(self, obj) -> int:
         return obj.solutions.count()
+
+    def get_location(self, obj) -> str:
+        return obj.location if obj.profile_is_public and obj.show_location_publicly else ""
+
+    def get_bio(self, obj) -> str:
+        return obj.bio if obj.profile_is_public else ""
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if not instance.profile_is_public:
+            data["avatar"] = None
+        return data
+
+
+class ActionMessageSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    username = serializers.CharField(required=False)
+    dev_reset_url = serializers.URLField(required=False)
+    dev_verify_url = serializers.URLField(required=False)
+
+
+class EmptyRequestSerializer(serializers.Serializer):
+    pass
+
+
+class TopCategorySerializer(serializers.Serializer):
+    name = serializers.CharField()
+    slug = serializers.CharField()
+    count = serializers.IntegerField()
+
+
+class ResolvedOverTimeSerializer(serializers.Serializer):
+    month = serializers.CharField()
+    challenges = serializers.IntegerField()
+    resolved = serializers.IntegerField()
+
+
+class StatsOverviewSerializer(serializers.Serializer):
+    total_challenges = serializers.IntegerField()
+    total_solutions = serializers.IntegerField()
+    resolved_count = serializers.IntegerField()
+    active_users = serializers.IntegerField()
+    top_categories = TopCategorySerializer(many=True)
+    resolved_over_time = ResolvedOverTimeSerializer(many=True)
