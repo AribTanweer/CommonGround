@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from apps.accounts.serializers import UserSummarySerializer
-from .models import Category, Tag, Challenge, Follow
+from .models import Category, Tag, Challenge, ChallengeUpdate, Follow
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -122,3 +122,12 @@ class ChallengeCreateSerializer(serializers.ModelSerializer):
         if final_tags:
             challenge.tags.set(final_tags)
         return challenge
+
+
+class ChallengeUpdateSerializer(serializers.ModelSerializer):
+    author = UserSummarySerializer(read_only=True)
+
+    class Meta:
+        model = ChallengeUpdate
+        fields = ("id", "author", "body", "status", "evidence_url", "created_at")
+        read_only_fields = ("id", "author", "status", "created_at")

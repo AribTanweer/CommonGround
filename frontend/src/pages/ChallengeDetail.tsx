@@ -23,6 +23,8 @@ import {
   useUpdateChallengeStatus,
   useUpdateChallenge,
   useDeleteChallenge,
+  useChallengeUpdates,
+  useCreateChallengeUpdate,
 } from '@/api/challenges';
 import { useSolutions } from '@/api/solutions';
 import { useComments } from '@/api/engagement';
@@ -65,18 +67,29 @@ export const ChallengeDetail: React.FC = () => {
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editLocation, setEditLocation] = useState('');
+  const [resolutionOpen, setResolutionOpen] = useState(false);
+  const [resolutionNote, setResolutionNote] = useState('');
+  const [resolutionEvidence, setResolutionEvidence] = useState('');
+  const [progressBody, setProgressBody] = useState('');
+  const [progressEvidence, setProgressEvidence] = useState('');
 
   const { data: challenge, isLoading, isError } = useChallenge(id);
   const { data: solutions = [], isLoading: solutionsLoading } = useSolutions(challenge?.id);
   const { data: comments = [], isLoading: commentsLoading } = useComments({
     challengeId: challenge?.id,
   });
+  const {
+    data: challengeUpdates = [],
+    isLoading: updatesLoading,
+    isError: updatesError,
+  } = useChallengeUpdates(challenge?.id);
 
   const supportMutation = useSupportChallenge(challenge?.id || 0);
   const followMutation = useFollowChallenge(challenge?.id || 0);
   const statusMutation = useUpdateChallengeStatus(challenge?.id || 0);
   const updateChallengeMutation = useUpdateChallenge(challenge?.id || 0);
   const deleteChallengeMutation = useDeleteChallenge(challenge?.id || 0);
+  const createUpdateMutation = useCreateChallengeUpdate(challenge?.id || 0);
 
   if (isLoading) {
     return (
@@ -171,7 +184,11 @@ export const ChallengeDetail: React.FC = () => {
   };
 
   const handleStatusChange = (newStatus: string) => {
-    statusMutation.mutate(newStatus, {
+    if (newStatus === 'resolved') {
+      setResolutionOpen(true);
+      return;
+    }
+    statusMutation.mutate({ status: newStatus }, {
       onSuccess: () => {
         toast({
           title: 'Status updated',
@@ -179,7 +196,41 @@ export const ChallengeDetail: React.FC = () => {
           variant: 'success',
         });
       },
+      onError: () => toast({ title: 'Status update failed', description: 'Please try again.', variant: 'error' }),
     });
+  };
+
+  const handleResolve = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!resolutionEvidence.trim()) return;
+    statusMutation.mutate(
+      { status: 'resolved', note: resolutionNote.trim(), evidence_url: resolutionEvidence.trim() },
+      {
+        onSuccess: () => {
+          setResolutionOpen(false);
+          setResolutionNote('');
+          setResolutionEvidence('');
+          toast({ title: 'Resolution recorded', description: 'The evidence is now part of the public challenge timeline.', variant: 'success' });
+        },
+        onError: () => toast({ title: 'Could not record resolution', description: 'Check the evidence link and try again.', variant: 'error' }),
+      }
+    );
+  };
+
+  const handleCreateUpdate = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!progressBody.trim()) return;
+    createUpdateMutation.mutate(
+      { body: progressBody.trim(), evidence_url: progressEvidence.trim() || undefined },
+      {
+        onSuccess: () => {
+          setProgressBody('');
+          setProgressEvidence('');
+          toast({ title: 'Progress update posted', variant: 'success' });
+        },
+        onError: () => toast({ title: 'Update failed', description: 'Could not post this progress update.', variant: 'error' }),
+      }
+    );
   };
 
   const handleOpenEdit = () => {
@@ -564,6 +615,64 @@ export const ChallengeDetail: React.FC = () => {
               )}
             </div>
             <StatusStepper status={challenge.status} orientation="vertical" />
+            <div className="border-t border-border/70 pt-3 space-y-3">
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Progress &amp; evidence</h4>
+                <p className="mt-1 text-xs text-muted-foreground">Status changes and owner updates are recorded here.</p>
+              </div>
+              {updatesLoading ? (
+                <Skeleton className="h-16 w-full rounded-xl" />
+              ) : updatesError ? (
+                <p className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive">Could not load progress updates. Please refresh to try again.</p>
+              ) : challengeUpdates.length === 0 ? (
+                <p className="rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">No progress updates yet.</p>
+              ) : (
+                <ol className="space-y-3">
+                  {challengeUpdates.map((update) => (
+                    <li key={update.id} className="border-l-2 border-primary/30 pl-3">
+                      <div className="flex flex-wrap items-center justify-between gap-1">
+                        <span className="text-xs font-semibold text-foreground">
+                          {update.status ? STATUS_CONFIG[update.status]?.label || update.status : 'Progress update'}
+                        </span>
+                        <time className="text-[10px] text-muted-foreground" dateTime={update.created_at}>
+                          {new Date(update.created_at).toLocaleDateString()}
+                        </time>
+                      </div>
+                      <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">{update.body}</p>
+                      {update.evidence_url && (
+                        <a href={update.evidence_url} target="_blank" rel="noreferrer" className="mt-1 inline-flex text-xs font-semibold text-primary hover:underline">
+                          View supporting evidence
+                        </a>
+                      )}
+                      <p className="mt-1 text-[10px] text-muted-foreground">Posted by {update.author.username}</p>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              {isAuthor && (
+                <details className="rounded-xl border border-border/70 p-3">
+                  <summary className="cursor-pointer text-xs font-semibold text-primary">Post a progress update</summary>
+                  <form onSubmit={handleCreateUpdate} className="mt-3 space-y-2">
+                    <Textarea
+                      value={progressBody}
+                      onChange={(event) => setProgressBody(event.target.value)}
+                      placeholder="Share what changed, who was contacted, or what happens next..."
+                      rows={3}
+                      required
+                    />
+                    <Input
+                      type="url"
+                      value={progressEvidence}
+                      onChange={(event) => setProgressEvidence(event.target.value)}
+                      placeholder="Evidence link (optional)"
+                    />
+                    <Button type="submit" size="sm" disabled={createUpdateMutation.isPending || !progressBody.trim()}>
+                      {createUpdateMutation.isPending ? 'Posting...' : 'Post update'}
+                    </Button>
+                  </form>
+                </details>
+              )}
+            </div>
           </div>
 
           {/* Quick Stats Card */}
@@ -661,6 +770,48 @@ export const ChallengeDetail: React.FC = () => {
         isPending={deleteChallengeMutation.isPending}
         onConfirm={handleDeleteChallenge}
       />
+
+      <Dialog open={resolutionOpen} onOpenChange={setResolutionOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Record resolution evidence</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleResolve} className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Add a public link that helps the community verify the outcome, such as a repair notice, dated photo, or service update.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="resolution-note">Resolution note</Label>
+              <Textarea
+                id="resolution-note"
+                value={resolutionNote}
+                onChange={(event) => setResolutionNote(event.target.value)}
+                placeholder="What was completed and when?"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="resolution-evidence">Evidence link</Label>
+              <Input
+                id="resolution-evidence"
+                type="url"
+                value={resolutionEvidence}
+                onChange={(event) => setResolutionEvidence(event.target.value)}
+                placeholder="https://..."
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setResolutionOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={statusMutation.isPending || !resolutionEvidence.trim()}>
+                {statusMutation.isPending ? 'Saving...' : 'Mark resolved'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

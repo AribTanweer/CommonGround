@@ -1,18 +1,33 @@
 from rest_framework import viewsets, permissions, status, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.db import transaction
 from django.db.models import Count, F, ExpressionWrapper, FloatField
 from django.db.models.functions import Extract, Now
 from django.shortcuts import get_object_or_404
 
 from apps.core.permissions import IsOwnerOrReadOnly
 from apps.core.mixins import OwnerOnCreateMixin
-from .models import Category, Tag, Challenge, Follow
+from apps.notifications.models import Notification
+from .models import Category, Tag, Challenge, ChallengeUpdate, Follow
 from .serializers import (
     CategorySerializer, TagSerializer,
     ChallengeListSerializer, ChallengeDetailSerializer, ChallengeCreateSerializer,
+    ChallengeUpdateSerializer,
 )
 from .filters import ChallengeFilter
+
+
+def notify_challenge_followers(challenge, actor, verb):
+    for follow in Follow.objects.filter(challenge=challenge).exclude(user=actor).select_related("user"):
+        Notification.objects.create(
+            recipient=follow.user,
+            actor=actor,
+            verb=verb,
+            target_type="challenge",
+            target_id=challenge.pk,
+            challenge=challenge,
+        )
 
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -27,6 +42,32 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = TagSerializer
     permission_classes = [permissions.AllowAny]
     pagination_class = None
+
+
+class ChallengeUpdateListCreateView(generics.ListCreateAPIView):
+    """List public progress notes; owners and moderators can add notes."""
+    serializer_class = ChallengeUpdateSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    pagination_class = None
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return ChallengeUpdate.objects.none()
+        return ChallengeUpdate.objects.filter(
+            challenge_id=self.kwargs["challenge_pk"]
+        ).select_related("author")
+
+    def perform_create(self, serializer):
+        challenge = get_object_or_404(Challenge, pk=self.kwargs["challenge_pk"])
+        user = self.request.user
+        is_moderator = user.is_staff or user.groups.filter(name="moderator").exists()
+        if challenge.author != user and not is_moderator:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only the challenge owner or a moderator can post progress updates.")
+        serializer.save(challenge=challenge, author=user)
+        transaction.on_commit(
+            lambda: notify_challenge_followers(challenge, user, "posted a progress update on")
+        )
 
 
 class ChallengeViewSet(OwnerOnCreateMixin, viewsets.ModelViewSet):
@@ -129,7 +170,7 @@ class ChallengeViewSet(OwnerOnCreateMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["patch"], url_path="status",
             permission_classes=[permissions.IsAuthenticated])
     def change_status(self, request, pk=None):
-        """Change challenge status (owner or moderator)."""
+        """Change status (owner/moderator) and append a status timeline entry."""
         challenge = self.get_object()
         user = request.user
 
@@ -149,7 +190,30 @@ class ChallengeViewSet(OwnerOnCreateMixin, viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        challenge.status = new_status
-        challenge.save(update_fields=["status"])
+        note = request.data.get("note", "")
+        evidence_url = request.data.get("evidence_url", "")
+        if not isinstance(note, str) or not isinstance(evidence_url, str):
+            return Response({"detail": "Note and evidence URL must be text."}, status=status.HTTP_400_BAD_REQUEST)
+        note = note.strip()
+        evidence_url = evidence_url.strip()
+        if new_status == Challenge.Status.RESOLVED and not evidence_url:
+            return Response(
+                {"detail": "Add a public evidence link before marking a challenge resolved."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not note:
+            note = f"Status changed to {dict(Challenge.Status.choices)[new_status]}."
+        update_serializer = ChallengeUpdateSerializer(
+            data={"body": note, "evidence_url": evidence_url}
+        )
+        update_serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            challenge.status = new_status
+            challenge.save(update_fields=["status"])
+            update_serializer.save(challenge=challenge, author=user, status=new_status)
+            transaction.on_commit(
+                lambda: notify_challenge_followers(challenge, user, "updated the status of")
+            )
         serializer = ChallengeDetailSerializer(challenge, context={"request": request})
         return Response({**serializer.data, "detail": f"Status changed to {new_status}."})

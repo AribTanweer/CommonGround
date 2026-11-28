@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './axios';
-import { Category, Challenge, PaginatedResponse, Tag } from './types';
+import { Category, Challenge, ChallengeUpdate, PaginatedResponse, Tag } from './types';
 
 export interface ChallengeQueryParams {
   category?: string;
@@ -35,6 +35,26 @@ export const useChallenge = (idOrSlug: string | number | undefined) => {
       return data;
     },
     enabled: !!idOrSlug,
+  });
+};
+
+export const useChallengeUpdates = (challengeId: number | undefined) => useQuery({
+  queryKey: ['challengeUpdates', challengeId],
+  queryFn: async (): Promise<ChallengeUpdate[]> => {
+    const { data } = await apiClient.get<ChallengeUpdate[]>(`/challenges/${challengeId}/updates/`);
+    return data;
+  },
+  enabled: !!challengeId,
+});
+
+export const useCreateChallengeUpdate = (challengeId: number) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { body: string; evidence_url?: string }) => {
+      const { data } = await apiClient.post<ChallengeUpdate>(`/challenges/${challengeId}/updates/`, payload);
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['challengeUpdates', challengeId] }),
   });
 };
 
@@ -94,8 +114,8 @@ export const useUpdateChallengeStatus = (challengeId: number) => {
   const queryClient = useQueryClient();
   const key = String(challengeId);
   return useMutation({
-    mutationFn: async (status: string) => {
-      const { data } = await apiClient.patch<Challenge>(`/challenges/${challengeId}/status/`, { status });
+    mutationFn: async (payload: { status: string; note?: string; evidence_url?: string }) => {
+      const { data } = await apiClient.patch<Challenge>(`/challenges/${challengeId}/status/`, payload);
       return data;
     },
     onSuccess: (updated) => {
@@ -108,6 +128,7 @@ export const useUpdateChallengeStatus = (challengeId: number) => {
       queryClient.invalidateQueries({ queryKey: ['challenge'] });
       queryClient.invalidateQueries({ queryKey: ['challenges'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
+      queryClient.invalidateQueries({ queryKey: ['challengeUpdates', challengeId] });
     },
   });
 };

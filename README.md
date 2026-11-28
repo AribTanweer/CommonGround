@@ -48,8 +48,11 @@ pip install -r requirements.txt
 # Run migrations
 python manage.py migrate
 
-# Seed demo data (creates categories, tags, demo users, challenges, solutions)
+# Seed a deterministic demo dataset across multiple cities, issue types, and account states.
+# This refreshes the named demo accounts and their content; other accounts and content are preserved.
 python manage.py seed_demo_data
+
+The sample includes 12 demo profiles (10 email-verified contributors and 2 unverified profiles), 9 categories, 19 core tags, 26 challenges, 48 proposals, status history, discussions, votes, follows, notifications, and moderation reports. Resolution evidence links are clearly marked as illustrative demo records.
 
 # Run dev server
 python manage.py runserver 0.0.0.0:8000

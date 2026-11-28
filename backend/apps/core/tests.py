@@ -287,12 +287,27 @@ class CommonGroundBusinessRulesTestCase(TestCase):
         self.assertGreaterEqual(len(res_stats.data["resolved_over_time"]), 1)
 
         self.client.force_authenticate(user=self.user1)
-        res_status = self.client.patch(
+        res_missing_evidence = self.client.patch(
             f"/api/v1/challenges/{self.challenge.id}/status/",
             {"status": "resolved"},
+            format="json",
+        )
+        self.assertEqual(res_missing_evidence.status_code, status.HTTP_400_BAD_REQUEST)
+
+        res_status = self.client.patch(
+            f"/api/v1/challenges/{self.challenge.id}/status/",
+            {
+                "status": "resolved",
+                "note": "The repair has been completed and inspected.",
+                "evidence_url": "https://example.org/repair-confirmation",
+            },
             format="json",
         )
         self.assertEqual(res_status.status_code, status.HTTP_200_OK)
         self.assertEqual(res_status.data["status"], "resolved")
         self.assertEqual(res_status.data["id"], self.challenge.id)
         self.assertEqual(res_status.data["slug"], self.challenge.slug)
+
+        res_updates = self.client.get(f"/api/v1/challenges/{self.challenge.id}/updates/")
+        self.assertEqual(res_updates.status_code, status.HTTP_200_OK)
+        self.assertTrue(any(update["status"] == "resolved" for update in res_updates.data))

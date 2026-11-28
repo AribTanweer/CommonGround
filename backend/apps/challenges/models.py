@@ -85,6 +85,29 @@ class Challenge(models.Model):
         super().save(*args, **kwargs)
 
 
+class ChallengeUpdate(models.Model):
+    """A dated community progress note or status change for a challenge."""
+
+    challenge = models.ForeignKey(
+        Challenge, on_delete=models.CASCADE, related_name="updates"
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="challenge_updates"
+    )
+    body = models.TextField()
+    status = models.CharField(
+        max_length=20, choices=Challenge.Status.choices, blank=True, default=""
+    )
+    evidence_url = models.URLField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Update on {self.challenge} by {self.author}"
+
+
 class Follow(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="follows"

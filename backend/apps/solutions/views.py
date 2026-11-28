@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models import F
 
 from apps.core.permissions import IsOwnerOrReadOnly
-from apps.challenges.models import Challenge, Follow
+from apps.challenges.models import Challenge, ChallengeUpdate, Follow
 from .models import Solution, SolutionRevision
 from .serializers import (
     SolutionListSerializer, SolutionCreateSerializer,
@@ -167,6 +167,12 @@ class SolutionAcceptView(generics.GenericAPIView):
         # Move challenge to in_progress
         challenge.status = Challenge.Status.IN_PROGRESS
         challenge.save(update_fields=["status"])
+        ChallengeUpdate.objects.create(
+            challenge=challenge,
+            author=request.user,
+            body=f"Accepted solution: {solution.title}",
+            status=Challenge.Status.IN_PROGRESS,
+        )
 
         # Reputation: +50 for accepted solution
         solution.author.reputation += 50

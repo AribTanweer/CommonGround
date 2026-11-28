@@ -74,7 +74,7 @@ export const Landing: React.FC = () => {
               <Compass className="h-6 w-6" />
             </div>
             <p className="text-3xl md:text-4xl font-extrabold text-foreground mb-1">
-              <ImpactCounter value={stats?.total_challenges ?? 142} suffix="+" />
+              <ImpactCounter value={stats?.total_challenges ?? 0} />
             </p>
             <p className="text-sm font-medium text-muted-foreground">Challenges Posted</p>
           </div>
@@ -84,7 +84,7 @@ export const Landing: React.FC = () => {
               <Lightbulb className="h-6 w-6" />
             </div>
             <p className="text-3xl md:text-4xl font-extrabold text-foreground mb-1">
-              <ImpactCounter value={stats?.total_solutions ?? 389} suffix="+" />
+              <ImpactCounter value={stats?.total_solutions ?? 0} />
             </p>
             <p className="text-sm font-medium text-muted-foreground">Solutions Proposed</p>
           </div>
@@ -94,7 +94,7 @@ export const Landing: React.FC = () => {
               <CheckCircle2 className="h-6 w-6" />
             </div>
             <p className="text-3xl md:text-4xl font-extrabold text-foreground mb-1">
-              <ImpactCounter value={stats?.resolved_count ?? 87} suffix="+" />
+              <ImpactCounter value={stats?.resolved_count ?? 0} />
             </p>
             <p className="text-sm font-medium text-muted-foreground">Issues Resolved</p>
           </div>

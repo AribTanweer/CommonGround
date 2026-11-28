@@ -2,31 +2,43 @@ import random
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Q
 
-from apps.challenges.models import Category, Tag, Challenge, Follow
+from apps.challenges.models import Category, Tag, Challenge, ChallengeUpdate, Follow
 from apps.solutions.models import Solution, SolutionRevision
-from apps.engagement.models import Comment, Vote
+from apps.engagement.models import Comment, Vote, Report
 from apps.notifications.models import Notification
 
 User = get_user_model()
+DEMO_USERNAMES = (
+    "arjun_sharma", "priya_patel", "rahul_verma", "ananya_deshmukh",
+    "vikram_singh", "fatima_khan", "meera_iyer", "sana_rahman",
+    "joseph_dsouza", "kavya_nair", "imran_sheikh", "tsering_dolma",
+)
 
 
 class Command(BaseCommand):
-    help = "Seed database with demo data (5 users, 6 categories, 10 tags, 20 challenges, 40 solutions, etc.)"
+    help = "Refresh the named demo accounts and their content with a diverse, deterministic sample dataset."
 
     @transaction.atomic
     def handle(self, *args, **options):
-        self.stdout.write("Clearing existing data...")
-        Notification.objects.all().delete()
-        Vote.objects.all().delete()
-        Comment.objects.all().delete()
-        SolutionRevision.objects.all().delete()
-        Solution.objects.all().delete()
-        Follow.objects.all().delete()
-        Challenge.objects.all().delete()
-        Tag.objects.all().delete()
-        Category.objects.all().delete()
-        User.objects.filter(is_superuser=False).delete()
+        random.seed(2026)
+        self.stdout.write("Refreshing CommonGround demo content...")
+        demo_user_ids = list(
+            User.objects.filter(username__in=DEMO_USERNAMES).values_list("pk", flat=True)
+        )
+        if demo_user_ids:
+            Notification.objects.filter(
+                Q(recipient_id__in=demo_user_ids) | Q(actor_id__in=demo_user_ids)
+            ).delete()
+            Report.objects.filter(reporter_id__in=demo_user_ids).delete()
+            ChallengeUpdate.objects.filter(author_id__in=demo_user_ids).delete()
+            Comment.objects.filter(author_id__in=demo_user_ids).delete()
+            SolutionRevision.objects.filter(editor_id__in=demo_user_ids).delete()
+            Vote.objects.filter(user_id__in=demo_user_ids).delete()
+            Follow.objects.filter(user_id__in=demo_user_ids).delete()
+            Solution.objects.filter(author_id__in=demo_user_ids).delete()
+            Challenge.objects.filter(author_id__in=demo_user_ids).delete()
 
         self.stdout.write("Creating users...")
         users_data = [
@@ -65,18 +77,75 @@ class Command(BaseCommand):
                 "location": "Jaipur, India",
                 "reputation": 130,
             },
+            {
+                "username": "fatima_khan",
+                "email": "fatima@example.com",
+                "bio": "Public health nurse working with residents on safer streets and cleaner air.",
+                "location": "Hyderabad, India",
+                "reputation": 84,
+                "email_notifications_enabled": True,
+            },
+            {
+                "username": "meera_iyer",
+                "email": "meera@example.com",
+                "bio": "Transit researcher who listens to daily commuters and shift workers.",
+                "location": "Chennai, India",
+                "reputation": 112,
+                "email_notifications_enabled": False,
+            },
+            {
+                "username": "sana_rahman",
+                "email": "sana@example.com",
+                "bio": "Disability rights volunteer and accessibility auditor.",
+                "location": "Kolkata, India",
+                "reputation": 176,
+                "email_notifications_enabled": True,
+            },
+            {
+                "username": "joseph_dsouza",
+                "email": "joseph@example.com",
+                "bio": "Coastal resident documenting flooding, waste, and public-space access.",
+                "location": "Kochi, India",
+                "reputation": 71,
+                "email_notifications_enabled": False,
+            },
+            {
+                "username": "kavya_nair",
+                "email": "kavya@example.com",
+                "bio": "Teacher interested in safe routes, libraries, and after-school learning.",
+                "location": "Thiruvananthapuram, India",
+                "reputation": 102,
+                "email_notifications_enabled": True,
+            },
+            {
+                "username": "imran_sheikh",
+                "email": "imran@example.com",
+                "bio": "Small-business owner and market association volunteer in Indore.",
+                "location": "Indore, India",
+                "reputation": 58,
+                "email_notifications_enabled": True,
+            },
+            {
+                "username": "tsering_dolma",
+                "email": "tsering@example.com",
+                "bio": "Community organizer focused on heat resilience and access to public services.",
+                "location": "Leh, India",
+                "reputation": 93,
+                "email_notifications_enabled": False,
+            },
         ]
 
         users = []
         for udata in users_data:
-            user = User.objects.create_user(
-                username=udata["username"],
-                email=udata["email"],
-                password="password123",
-                bio=udata["bio"],
-                location=udata["location"],
-                reputation=udata["reputation"],
-            )
+            user, _ = User.objects.get_or_create(username=udata["username"])
+            user.email = udata["email"]
+            user.bio = udata["bio"]
+            user.location = udata["location"]
+            user.reputation = udata["reputation"]
+            user.is_email_verified = False
+            user.email_notifications_enabled = udata.get("email_notifications_enabled", True)
+            user.set_password("password123")
+            user.save()
             users.append(user)
 
         # Ensure a superuser / admin exists
@@ -95,9 +164,14 @@ class Command(BaseCommand):
             ("Health & Sanitation", "health-sanitation", "heart-pulse"),
             ("Education & Youth", "education-youth", "book-open"),
             ("Civic Amenities & Water", "civic-amenities-water", "droplets"),
+            ("Community Health & Wellbeing", "community-health-wellbeing", "heart-pulse"),
+            ("Digital Access & Inclusion", "digital-access-inclusion", "wifi"),
+            ("Climate Resilience", "climate-resilience", "cloud-sun"),
         ]
         categories = [
-            Category.objects.create(name=name, slug=slug, icon=icon)
+            Category.objects.update_or_create(
+                slug=slug, defaults={"name": name, "icon": icon}
+            )[0]
             for name, slug, icon in categories_data
         ]
 
@@ -105,76 +179,100 @@ class Command(BaseCommand):
         tag_names = [
             "lighting", "traffic", "cleanliness", "parks", "solar",
             "roads", "waste-management", "water-supply", "pedestrian", "air-quality",
+            "accessibility", "public-transit", "safe-routes", "heat", "digital-access",
+            "public-health", "coastal-resilience", "youth", "accountability",
         ]
-        tags = [Tag.objects.create(name=name, slug=name) for name in tag_names]
+        tags = [
+            Tag.objects.update_or_create(slug=name, defaults={"name": name})[0]
+            for name in tag_names
+        ]
 
         self.stdout.write("Creating challenges...")
         challenge_samples = [
-            ("Broken streetlights on Model Town 4th Avenue",
-             "Streetlights along the 1.5 km stretch between 4th Avenue and the metro station have been non-functional for 3 weeks, creating safety risks for evening commuters.",
-             0, [0, 2], "Model Town Road, Sector 14", "open"),
+            ("Broken streetlights on Indiranagar 12th Main",
+             "Four lamps between the bus stop and the 12th Main market have been out for three weeks. Shopkeepers and evening commuters say the unlit crossing is difficult to use after 8 pm; the ward complaint number is CG-2417.",
+             0, [0, 2], "Indiranagar 12th Main, Bengaluru", "proposed"),
             ("Severe waterlogging near Central Market underpass",
-             "Every monsoon storm floods the underpass under Central Market with up to 2 feet of stagnant water, halting all pedestrian and light motor vehicle traffic.",
-             0, [1, 5, 8], "Central Market Underpass", "in_progress"),
+             "After two heavy showers this month, water remained across the underpass until late morning. Pedestrians are walking in the carriageway and two bus routes are detouring; residents have photos from 7:30 am after each storm.",
+             0, [1, 5, 8], "Nana Peth market underpass, Pune", "in_progress"),
             ("Overflowing garbage bins outside Community Park",
-             "Municipal waste collection has been irregular, resulting in foul odor, stray animal disturbance, and litter covering the entrance to the children's park.",
-             3, [2, 6], "Green Park Sector 9", "proposed"),
+             "The two public bins outside the market garden were missed on three collection days this week. Food waste is spilling onto the footpath, making the park entrance hard to use for people with strollers and mobility aids.",
+             3, [2, 6], "Andheri East market garden, Mumbai", "proposed"),
             ("Unregulated speeding near St. Jude Public School",
-             "Vehicles exceed speed limits during school drop-off and pickup hours due to lack of speed breakers or pedestrian crossings.",
-             2, [1, 8], "St. Jude Avenue, North Block", "resolved"),
+             "Families report cars and motorbikes cutting through the school lane during the 8 am arrival period. The crossing paint has faded and parked vehicles block the sightline; the school has offered to help count traffic for a week.",
+             2, [1, 8], "Adarsh Nagar School Road, Jaipur", "resolved"),
             ("Neglected public park with broken benches and dead trees",
-             "The 2-acre neighborhood park has zero lighting, unkempt weeds, broken jogging track tiles, and no dustbins.",
-             1, [3, 2], "Shanti Vihar Pocket B", "proposed"),
+             "The north path has three broken paving sections and two benches with loose slats. Residents have asked for a maintenance inspection and a public schedule for pruning and bin collection before the monsoon.",
+             1, [3, 2], "Sector 12 neighborhood park, Dwarka, Delhi", "proposed"),
             ("Frequent drinking water contamination in Block C",
-             "Residents report muddy, foul-smelling tap water intermittently during morning supply hours for the past 10 days.",
-             5, [7], "Civil Lines, Block C", "open"),
+             "Several households have noticed brown water at the first morning supply on four days this month. Residents have kept dated photos and are asking for a sample test and a clear update from the water utility before drawing conclusions about the cause.",
+             5, [7], "Whitefield, Bengaluru, Block C supply line", "proposed"),
             ("Lack of designated cycling tracks on Ring Road",
-             "Cyclists and e-bike riders are forced into mixed heavy traffic lanes, leading to frequent near-miss collisions during rush hour.",
-             0, [1, 8], "Outer Ring Road Stretch 5", "proposed"),
+             "The service lane narrows beside a bus stop and delivery vehicles often park across it. Two local cycling groups have logged close passes during the 8 to 10 am commute and can share the route notes with the road agency.",
+             0, [1, 8], "Outer Ring Road service lane, Hyderabad", "proposed"),
             ("Absence of public restrooms near bustling bus terminal",
-             "Over 10,000 daily commuters use the East End terminal, yet the nearest functioning toilet facility is over 800m away.",
-             3, [2], "East End Bus Terminal", "in_progress"),
+             "The accessible toilet at the terminal has been locked during three recent evening visits. The next open facility is outside the station area, which is difficult for older passengers and people travelling with children.",
+             3, [2], "Koyambedu bus terminal, Chennai", "in_progress"),
             ("Dust pollution from uncovered construction materials",
-             "Major residential projects leave sand and cement piles uncovered on the pavement, spiking PM2.5 levels locally.",
-             1, [9, 2], "Cyber City Phase 2", "open"),
+             "Two active building sites have left sand piles beside the public footpath uncovered on dry, windy afternoons. Residents have asked the site managers to cover materials and keep pedestrian access clear while the ward team checks the complaint.",
+             1, [9, 2], "Sector 57 construction corridor, Gurugram", "proposed"),
             ("Stray cattle blocking arterial highway intersection",
-             "Unattended cows and bullocks congregate on the road island, causing frequent sudden braking and traffic bottlenecks.",
-             0, [1], "Old Highway Junction 12", "open"),
+             "Residents have seen cattle resting on the traffic island near the junction on several evenings. Drivers brake suddenly and the animals are exposed to fast traffic; the community is asking the municipality and local animal-care groups to coordinate a humane response.",
+             0, [1], "Ajmer Road and Ring Road junction, Jaipur", "proposed"),
             ("Damaged footbridge over Railway Line connecting Sector 8 & 9",
-             "Several iron plates on the pedestrian overpass are loose and rusting through, endangering hundreds of daily school children.",
-             0, [8], "Railway Crossing Kilometre 42", "in_progress"),
-            ("Need for solar streetlights in un-electrified slum resettlement area",
-             "A recently established colony lacks electrical grid poles. Installing decentralized solar lights would immediately reduce nighttime crime.",
-             2, [0, 4], "Navjeevan Basti, Ward 11", "proposed"),
+             "Two deck plates move underfoot on the east stair landing and the handrail is loose at one joint. Commuters have reported the hazard to the rail help desk and want a temporary barrier until an inspection is completed.",
+             0, [8], "Sealdah rail approach, Kolkata", "in_progress"),
+            ("Need for safer lighting in a newly serviced resettlement neighborhood",
+             "Several lanes in the recently expanded neighborhood have no working streetlights. Residents have asked the ward office to assess pole locations before the next monsoon.",
+             2, [0, 4], "Navjeevan Nagar, Ward 11, Jaipur", "proposed"),
             ("No accessible ramps for wheelchairs at District Library",
-             "The public library entrance has 12 steep steps with no ramp or elevator access, locking out persons with disabilities.",
-             4, [8], "Civil Court Road", "resolved"),
+             "The step-free entrance is currently used for deliveries and is locked during public hours. Library users who use wheelchairs or have limited mobility have requested a reliable accessible entrance and clear signage.",
+             4, [8], "District Library, Deccan, Pune", "resolved"),
             ("Illegal dumping of electronic waste along canal bank",
-             "Discarded batteries and circuit boards are being dumped along the irrigation canal, contaminating downstream groundwater.",
-             1, [6, 7], "Western Canal Bank Rd", "open"),
+             "Residents found discarded batteries and circuit boards beside the canal path. The material has not been tested, so the request is for safe removal by an authorized e-waste collector and a collection point for future household drop-offs.",
+             1, [6, 7], "Sabarmati service road, Ahmedabad", "proposed"),
             ("Pothole cluster at Main Market intersection causing accidents",
-             "Deep craters formed after recent pipeline digging remain unpaved, causing multiple two-wheeler skids each week.",
-             0, [5, 1], "Main Bazaar Chowk", "proposed"),
+             "Three open patches remain where a utility repair was completed last month. Drivers swerve around them during market hours, and shopkeepers have submitted a repair request with photos and the work-order date.",
+             0, [5, 1], "Rajwada market crossing, Indore", "proposed"),
             ("Inadequate bus frequency during early morning shift hours",
-             "Factory workers and domestic helpers wait over 45 minutes for route 402 between 5:30 AM and 7:00 AM.",
-             0, [1], "Industrial Area Gate 3", "open"),
+             "Passengers on the first shift say the 5:40 and 6:10 am trips are often full or do not arrive. A worker group is collecting a two-week count so the transit operator can review demand before changing the schedule.",
+             0, [1], "Dahisar industrial shift route, Mumbai", "proposed"),
             ("Open drainage trench without protective railings near playground",
-             "A 5-foot-deep municipal storm drain runs exposed right alongside the municipal football ground.",
-             3, [2, 7], "Vidyapeeth Colony Ground", "in_progress"),
+             "A section of the storm drain beside the football ground is open where a cover slab broke. Children use the path after school, so residents have requested a temporary barrier first and a dated repair plan from the public works team.",
+             3, [2, 7], "Municipal football ground, Bhopal", "in_progress"),
             ("Lack of after-school learning center for underprivileged children",
-             "Children in the resettlement colony have no quiet space with books or internet access to complete homework.",
-             4, [], "Bapu Nagar Community Hall", "proposed"),
+             "The community hall is available only during daytime hours, leaving students without a nearby quiet place to study after school. Teachers and parents are exploring a supervised evening room with donated books and scheduled device access.",
+             4, [], "Bapu Nagar community hall, Indore", "proposed"),
             ("Dying urban lake due to unchecked sewage inflow",
-             "Untreated graywater from nearby unauthorized residential layouts has led to massive algal bloom in Lotus Lake.",
-             1, [7, 3], "Lotus Lake Wetland Area", "in_progress"),
+             "A green surface bloom has appeared near the inlet after several weeks of low rainfall. Residents are requesting water-quality testing and an inspection of nearby drains before identifying a source or proposing a permanent fix.",
+             1, [7, 3], "Shahpura Lake inlet, Bhopal", "in_progress"),
             ("Excessive noise pollution from unregistered banquets near residential zones",
-             "Loudspeakers and fireworks operate well past midnight on weekdays, disrupting students and senior citizens.",
-             2, [], "Shalimar Enclave", "open"),
+             "Neighbors on three lanes have logged amplified music after the posted quiet hours on four weekdays this month. They want a clear contact for time-stamped complaints and a fair process for venues and residents to resolve repeat issues.",
+             2, [], "Residential lane near Sealdah, Kolkata", "proposed"),
+            ("Heat-safe drinking water and shade missing from two city bus stops",
+             "During April and May, passengers wait in direct sun for 20 to 30 minutes. The nearest drinking water point is inside a private shop, and older riders have reported dizziness.",
+             8, [3, 4, 13], "Gandhi Road stops 14 and 15, Leh", "proposed"),
+            ("Residents need an offline way to access ward services",
+             "The ward grievance form requires a smartphone and a one-time password. Several older residents and people with limited data access cannot submit repair requests or track existing ones.",
+             7, [10, 17], "Ward 22 community library, Indore", "proposed"),
+            ("High-tide flooding blocks the only step-free route to the ferry",
+             "Water covers the sloped approach during spring tides, leaving wheelchair users and parents with strollers unable to reach the Kochi ferry safely. The warning sign is faded and the drain backs up with plastic waste.",
+             8, [10, 15, 2], "Fort Kochi ferry approach", "in_progress"),
+            ("Community clinic queue has no private seating or clear language signs",
+             "Patients wait outside in the sun and cannot tell which queue is for vaccinations, prenatal visits, or urgent care. The current signs are only in English and there is no private place to ask for help.",
+             6, [14, 10], "Banjara Hills Urban Health Centre, Hyderabad", "resolved"),
+            ("School crossing needs a safe route for children with mobility aids",
+             "The zebra crossing near the school is often blocked by parked vehicles, and the curb ramp ends in a broken storm grate. Families currently use the road between moving traffic and parked scooters.",
+             2, [1, 8, 10], "Government Middle School, Chennai", "closed"),
+            ("Library computer room is inaccessible after the evening power cut",
+             "Students who rely on the public library computers lose their study session during scheduled evening outages. The backup battery is undersized and there is no published outage schedule.",
+             7, [16, 17, 7], "South Kolkata Community Library", "open"),
         ]
 
         challenges = []
+        intended_statuses = []
         for i, (title, desc, cat_idx, tag_indices, loc, stat) in enumerate(challenge_samples):
-            author = users[i % len(users)]
+            author = users[i % min(10, len(users))]
             cat = categories[cat_idx]
             ch = Challenge.objects.create(
                 author=author,
@@ -183,13 +281,13 @@ class Command(BaseCommand):
                 category=cat,
                 location=loc,
                 status=stat,
-                support_count=random.randint(4, 25),
+                support_count=0,
             )
             if tag_indices:
                 ch.tags.set([tags[ti] for ti in tag_indices if ti < len(tags)])
             challenges.append(ch)
+            intended_statuses.append(stat)
 
-        self.stdout.write("Creating solutions (40 total)...")
         solution_data = [
             ("Deploy solar-powered standalone LED fixtures with smart dimming",
              "Install 15 independent solar poles along the 1.5km unlit stretch. Uses lithium-ion batteries and light sensors to reduce nighttime power drain.",
@@ -311,14 +409,39 @@ class Command(BaseCommand):
             ("Mandatory indoor acoustic baffling for banquet venues",
              "Require venue owners to install double-glazed soundproof glass and interior sound absorption panels.",
              "Private cost", "med"),
+            ("Add refillable water dispensers and tensile shade at both bus stops",
+             "Install a metered refill station supplied by the municipal line, a shaded bench, and a heat index notice. Ask the bus operator to check the station during the morning route inspection.",
+             "₹85,000 for both stops", "med"),
+            ("Run a staffed heat-safety pilot before the summer peak",
+             "Train nearby shopkeepers and transit staff to refill sealed water jars, identify heat illness, and call the local health helpline. Review usage and maintenance after four weeks.",
+             "₹12,000 pilot", "low"),
+            ("Set up a weekly assisted-service desk at the community library",
+             "Offer a two-hour drop-in session with printed forms, a shared phone, and a receipt number for each grievance. Keep personal information out of public logs.",
+             "₹3,500 per month", "low"),
+            ("Publish a low-bandwidth grievance tracker with SMS receipts",
+             "Add an SMS confirmation and a simple text-only status page to the existing ward service. Retain phone and paper submissions for residents who cannot use online forms.",
+             "₹1,40,000 estimate", "high"),
+            ("Clear and widen the ferry approach drain, then mark tide access hours",
+             "Remove waste from the existing drain, install a removable non-slip ramp panel, and post tide-based access guidance in Malayalam and English. Review the ramp with local wheelchair users.",
+             "₹68,000 estimate", "med"),
+            ("Create a high-tide alert and accessible alternate route map",
+             "Share a daily tide notice through the ferry desk and a printed board, with a step-free alternate route and a phone number for assistance.",
+             "₹8,000 setup", "low"),
+            ("Add shaded triage seating and bilingual queue signs at the clinic",
+             "Work with clinic staff and patient volunteers to label queues in Telugu, Urdu, and English. Add shaded seating and a private desk for questions about sensitive care.",
+             "₹42,000 estimate", "med"),
+            ("Pilot a volunteer patient navigator for peak clinic hours",
+             "Schedule a trained volunteer for two morning shifts each week to direct patients and collect anonymous feedback about confusing steps.",
+             "Volunteer-led", "low"),
         ]
 
+        self.stdout.write(f"Creating solutions ({len(solution_data)} total)...")
         solutions = []
         for i, (title, summ, cost, effort) in enumerate(solution_data):
-            challenge = challenges[i % len(challenges)]
-            author = users[(i + 1) % len(users)]
+            challenge = challenges[i // 2]
+            author = users[(i + 1) % min(10, len(users))]
             if author == challenge.author:
-                author = users[(i + 2) % len(users)]
+                author = users[(i + 2) % min(10, len(users))]
 
             is_accepted = False
             if challenge.status in (Challenge.Status.IN_PROGRESS, Challenge.Status.RESOLVED):
@@ -342,14 +465,14 @@ class Command(BaseCommand):
             if i % 3 == 0:
                 SolutionRevision.objects.create(
                     solution=sol,
-                    editor=users[(i + 3) % len(users)],
+                    editor=users[(i + 3) % min(10, len(users))],
                     content=summ + "\n\n*Updated with revised component specifications and estimated lead times.*",
                     note="Refined technical details based on civil engineer feedback.",
                 )
 
         self.stdout.write("Creating follows...")
         for ch in challenges:
-            for u in random.sample(users, k=3):
+            for u in random.sample(users[:10], k=4):
                 Follow.objects.get_or_create(user=u, challenge=ch)
 
         self.stdout.write("Creating comments...")
@@ -361,15 +484,15 @@ class Command(BaseCommand):
             "Great initiative! Happy to volunteer for the survey and execution team on weekends.",
         ]
 
-        for i, ch in enumerate(challenges[:12]):
+        for i, ch in enumerate(challenges):
             c1 = Comment.objects.create(
-                author=users[(i + 1) % len(users)],
+                author=users[(i + 1) % 10],
                 challenge=ch,
                 body=comment_texts[i % len(comment_texts)],
             )
             # Add reply
             Comment.objects.create(
-                author=users[(i + 2) % len(users)],
+                author=users[(i + 2) % 10],
                 challenge=ch,
                 parent=c1,
                 body="Agreed! Let's present this collectively at the next Ward Committee meeting.",
@@ -377,22 +500,70 @@ class Command(BaseCommand):
 
         for i, sol in enumerate(solutions[:15]):
             Comment.objects.create(
-                author=users[(i + 2) % len(users)],
+                author=users[(i + 2) % 10],
                 solution=sol,
                 body="The cost estimation here is very well thought out. Has the team verified warranty terms?",
             )
 
         self.stdout.write("Creating votes...")
         for ch in challenges:
-            for u in users:
+            for u in users[:10]:
                 if u != ch.author and random.random() > 0.3:
                     Vote.objects.get_or_create(user=u, challenge=ch, defaults={"value": 1})
 
         for sol in solutions:
-            for u in users:
+            for u in users[:10]:
                 if u != sol.author and random.random() > 0.4:
                     val = 1 if random.random() > 0.1 else -1
                     Vote.objects.get_or_create(user=u, solution=sol, defaults={"value": val})
+
+        # Keep denormalized totals accurate and restore intended statuses after
+        # the solution-created signal's automatic open -> proposed transition.
+        for ch, intended_status in zip(challenges, intended_statuses):
+            ch.support_count = Vote.objects.filter(challenge=ch, value=1).count()
+            ch.status = intended_status
+            ch.save(update_fields=["support_count", "status"])
+            if intended_status != Challenge.Status.OPEN:
+                status_label = dict(Challenge.Status.choices)[intended_status]
+                evidence_url = (
+                    f"https://example.com/commonground-demo/{ch.slug}/resolution"
+                    if intended_status == Challenge.Status.RESOLVED
+                    else ""
+                )
+                note = {
+                    Challenge.Status.PROPOSED: "DEMO UPDATE: Residents are comparing proposals and collecting questions for the next ward meeting.",
+                    Challenge.Status.IN_PROGRESS: "DEMO UPDATE: The owner reports that the responsible service team has been contacted and the next inspection date is being coordinated.",
+                    Challenge.Status.RESOLVED: "DEMO UPDATE: Example resolution record for interface preview. Replace this illustrative evidence link with a verifiable source in live data.",
+                    Challenge.Status.CLOSED: "DEMO UPDATE: Archived after the community review; no implementation claim is being made.",
+                }.get(intended_status, f"DEMO UPDATE: Status recorded as {status_label}.")
+                ChallengeUpdate.objects.create(
+                    challenge=ch,
+                    author=ch.author,
+                    body=note,
+                    status=intended_status,
+                    evidence_url=evidence_url,
+                )
+        for sol in solutions:
+            sol.score = sum(Vote.objects.filter(solution=sol).values_list("value", flat=True))
+            sol.save(update_fields=["score"])
+
+        self.stdout.write("Creating moderation reports...")
+        challenge_comments = list(Comment.objects.filter(challenge__isnull=False).order_by("id"))
+        solution_comments = list(Comment.objects.filter(solution__isnull=False).order_by("id"))
+        report_samples = [
+            ("challenge", challenges[2], "Location is too broad to verify; please add the park entrance or nearest landmark."),
+            ("solution", solutions[8], "The proposal may rely on private sponsorship; disclose the maintenance terms."),
+            ("comment", challenge_comments[3], "Contains a personal phone number that should be removed."),
+            ("comment", solution_comments[1], "Possible duplicate comment; moderator review requested."),
+        ]
+        for i, (target_type, target, reason) in enumerate(report_samples):
+            kwargs = {target_type: target}
+            Report.objects.create(
+                reporter=users[(i + 4) % 10],
+                reason=reason,
+                resolved=(i == 1),
+                **kwargs,
+            )
 
         self.stdout.write("Creating notifications...")
         for u in users:
@@ -415,14 +586,20 @@ class Command(BaseCommand):
                 is_read=False,
             )
 
+        # Ten active demo contributors have verified email; two unverified
+        # profiles exercise the verification and account-settings UI states.
+        User.objects.filter(pk__in=[u.pk for u in users[:10]]).update(is_email_verified=True)
+
         self.stdout.write(self.style.SUCCESS(
             f"Successfully seeded database:\n"
             f"- {User.objects.count()} users\n"
             f"- {Category.objects.count()} categories\n"
             f"- {Tag.objects.count()} tags\n"
             f"- {Challenge.objects.count()} challenges\n"
+            f"- {ChallengeUpdate.objects.count()} progress updates\n"
             f"- {Solution.objects.count()} solutions\n"
             f"- {Comment.objects.count()} comments\n"
             f"- {Vote.objects.count()} votes\n"
             f"- {Notification.objects.count()} notifications"
+            f"\n- {Report.objects.count()} moderation reports"
         ))

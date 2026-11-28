@@ -51,6 +51,16 @@ export interface Challenge {
   updated_at: string;
 }
 
+export interface ChallengeUpdate {
+  id: number;
+  challenge?: number;
+  author: User;
+  body: string;
+  status?: Challenge['status'] | '';
+  evidence_url?: string;
+  created_at: string;
+}
+
 export interface ChallengeCreatePayload {
   title: string;
   description: string;
