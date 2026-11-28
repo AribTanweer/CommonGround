@@ -94,16 +94,17 @@ export const Explore: React.FC = () => {
   const hasActiveFilters = Boolean(category || status || tag || location || space || search);
 
   return (
-    <div className="container px-4 py-8 max-w-7xl">
+    <div className="container px-4 py-10 max-w-7xl">
       {/* Top Header & Search */}
       <div className="space-y-6 mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
-              Community Challenges
+          <div className="max-w-2xl">
+            <p className="eyebrow mb-3">The neighborhood board</p>
+            <h1 className="font-display text-4xl md:text-5xl leading-tight text-foreground">
+              Challenges worth <em className="text-primary">showing up for.</em>
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Discover real problems posted by citizens, support ideas, and collaborate on solutions.
+            <p className="text-sm md:text-base text-muted-foreground mt-3 max-w-xl leading-relaxed">
+              Find the issues people are working on, lend your support, and help turn good ideas into shared progress.
             </p>
           </div>
 
@@ -164,7 +165,7 @@ export const Explore: React.FC = () => {
         </div>
 
         {/* Sort Tabs, View Toggle & Count */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-b border-border/60 pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-b border-border/70 pb-4">
           <div className="flex flex-wrap items-center gap-1.5 p-1 bg-muted/70 rounded-xl">
             {sortTabs.map((tab) => {
               const Icon = tab.icon;
@@ -299,7 +300,7 @@ export const Explore: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Desktop Sidebar */}
         <aside className="hidden lg:block lg:col-span-1">
-          <div className="sticky top-24 rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
+          <div className="sticky top-24 paper-panel p-5">
             <FilterSidebar
               categories={categories}
               tags={tags}

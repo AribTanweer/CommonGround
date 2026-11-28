@@ -11,7 +11,7 @@ export const Footer: React.FC = () => {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white shadow-sm">
               <Globe2 className="h-4 w-4" />
             </div>
-            <span className="font-extrabold text-base tracking-tight bg-gradient-to-r from-primary to-indigo-600 bg-clip-text text-transparent">
+            <span className="font-display text-lg tracking-tight text-foreground">
               CommonGround
             </span>
           </div>
@@ -35,6 +35,11 @@ export const Footer: React.FC = () => {
             <li>
               <Link to="/challenges/new" className="hover:text-foreground transition-colors">
                 Post a Challenge
+              </Link>
+            </li>
+            <li>
+              <Link to="/spaces" className="hover:text-foreground transition-colors">
+                Community Spaces
               </Link>
             </li>
             <li>

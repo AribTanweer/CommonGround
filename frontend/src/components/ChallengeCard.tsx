@@ -17,7 +17,7 @@ import {
   Compass,
 } from 'lucide-react';
 import { Challenge } from '@/api/types';
-import { STATUS_CONFIG, STATUS_STEPS, getCategoryColor, getCategoryGradient } from '@/lib/constants';
+import { STATUS_CONFIG, STATUS_STEPS, getCategoryColor } from '@/lib/constants';
 import { timeAgo, truncate } from '@/lib/utils';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -50,7 +50,6 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, variant
   const categoryName = challenge.category?.name || challenge.category_name || 'General';
   const categorySlug = challenge.category?.slug || categoryName.toLowerCase();
   const categoryColor = getCategoryColor(categorySlug);
-  const categoryGradient = getCategoryGradient(categorySlug);
   const CategoryIcon = CATEGORY_ICONS[categorySlug] || Compass;
   const isSupported = !!(challenge.has_supported ?? challenge.is_supported);
 
@@ -68,11 +67,11 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, variant
   if (variant === 'list') {
     return (
       <article
-        className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-border/70 bg-card p-4 sm:p-5 shadow-sm transition-all duration-200 hover:border-primary/40 hover:shadow-md"
+        className="group flex flex-col justify-between gap-4 border-b border-border/80 py-5 transition-colors hover:bg-card/55 sm:flex-row sm:items-center sm:gap-8 sm:px-3"
       >
         <div className="flex items-start gap-4 min-w-0 flex-1">
           <div
-            className={`hidden sm:flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${categoryGradient} border border-border/50`}
+            className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-full border border-primary/10 bg-secondary text-primary sm:flex"
           >
             <CategoryIcon className="h-5 w-5" />
           </div>
@@ -144,18 +143,18 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, variant
 
   return (
     <article
-      className="group relative rounded-2xl border border-border/70 bg-card p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-primary/40 flex flex-col justify-between"
+      className="paper-panel group relative flex flex-col justify-between overflow-hidden rounded-[1.15rem] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_45px_-34px_hsl(var(--foreground)/0.5)]"
     >
       <div>
         {/* Header badges */}
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <Badge variant="outline" className={`font-semibold text-xs gap-1 ${categoryColor}`}>
+        <div className="flex items-center justify-between gap-2 px-5 pt-5">
+          <Badge variant="outline" className={`gap-1.5 border-transparent bg-secondary font-semibold text-[10px] uppercase tracking-wider text-secondary-foreground ${categoryColor}`}>
             <CategoryIcon className="h-3 w-3" />
             {categoryName}
           </Badge>
 
           <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold border ${statusInfo.bgColor} ${statusInfo.color} ${statusInfo.borderColor}`}
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider border ${statusInfo.bgColor} ${statusInfo.color} ${statusInfo.borderColor}`}
           >
             <span className="h-1.5 w-1.5 rounded-full bg-current" />
             {statusInfo.label}
@@ -164,7 +163,7 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, variant
 
         {/* Thumbnail Image or Clean Category Banner */}
         {challenge.image ? (
-          <div className="relative mb-3.5 h-40 w-full overflow-hidden rounded-xl bg-muted">
+          <div className="relative mx-5 mt-4 h-36 overflow-hidden rounded-lg bg-muted">
             <img
               src={challenge.image}
               alt={challenge.title}
@@ -174,29 +173,28 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, variant
           </div>
         ) : (
           <div
-            className={`relative mb-3.5 h-24 w-full overflow-hidden rounded-xl bg-gradient-to-br ${categoryGradient} border border-border/40 flex items-center justify-between px-4`}
+            className="relative mx-5 mt-4 flex h-32 items-center justify-between overflow-hidden rounded-lg border border-primary/10 bg-secondary px-5"
           >
-            <div className="flex items-center gap-2.5 opacity-85">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-background/70 backdrop-blur-sm shadow-sm">
+            <div className="flex items-center gap-3 text-primary">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-card shadow-sm">
                 <CategoryIcon className="h-5 w-5" />
               </div>
-              <span className="text-xs font-semibold uppercase tracking-wider opacity-80">
-                {categoryName}
-              </span>
+              <div><span className="eyebrow block">A community note</span><span className="mt-1 block font-display text-xl">{categoryName}</span></div>
             </div>
-            <div className="h-16 w-16 rounded-full bg-background/20 blur-xl" />
+            <div className="pointer-events-none absolute -right-5 -top-8 h-36 w-36 rounded-full border border-primary/15" />
+            <div className="pointer-events-none absolute -right-1 -top-4 h-24 w-24 rounded-full border border-primary/15" />
           </div>
         )}
 
         {/* Title */}
-        <h3 className="text-lg font-bold text-foreground transition-colors line-clamp-2 leading-snug mb-2">
+        <h3 className="px-5 pt-4 text-[1.45rem] font-normal leading-tight text-foreground transition-colors line-clamp-2">
           <Link to={`/challenges/${challenge.id}`} className="rounded-sm hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             {challenge.title}
           </Link>
         </h3>
 
         {/* Description snippet */}
-        <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed mb-4">
+        <p className="px-5 pt-2 text-[13px] leading-6 text-muted-foreground line-clamp-2">
           {challenge.description}
         </p>
       </div>
@@ -204,11 +202,11 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, variant
       <div>
         {/* Tags */}
         {challenge.tags && challenge.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-3">
+          <div className="flex flex-wrap gap-1.5 px-5 pt-4">
             {challenge.tags.slice(0, 3).map((tag) => (
               <span
                 key={tag.id}
-                className="text-[11px] font-medium bg-muted/60 text-muted-foreground px-2 py-0.5 rounded-md"
+                className="rounded-full border border-border/70 px-2.5 py-1 text-[10px] font-medium text-muted-foreground"
               >
                 #{tag.name}
               </span>
@@ -223,15 +221,15 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, variant
 
         {/* Location if present */}
         {challenge.location && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
-            <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground/80" />
+          <div className="flex items-center gap-1.5 px-5 pt-4 text-xs text-muted-foreground">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-accent" />
             <span className="truncate">{truncate(challenge.location, 35)}</span>
           </div>
         )}
 
         {/* Subtle Lifecycle Progress Strip */}
         {statusInfo.stepIndex >= 0 && (
-          <div className="grid grid-cols-4 gap-1 mb-3" title={`Stage: ${statusInfo.label}`}>
+          <div className="mx-5 mt-4 grid grid-cols-4 gap-1" title={`Stage: ${statusInfo.label}`}>
             {STATUS_STEPS.map((step, idx) => (
               <div
                 key={step.key}
@@ -244,7 +242,7 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, variant
         )}
 
         {/* Footer info & Support Action */}
-        <div className="pt-3 border-t border-border/60 flex items-center justify-between gap-2">
+        <div className="mx-5 mt-4 flex items-center justify-between gap-2 border-t border-border/70 py-4">
           {/* Author */}
           <div className="flex items-center gap-2 min-w-0">
             <Avatar className="h-7 w-7 ring-1 ring-border">

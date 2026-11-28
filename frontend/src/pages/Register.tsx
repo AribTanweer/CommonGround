@@ -325,29 +325,29 @@ export const Register: React.FC = () => {
       </div>
 
       {/* Right side: Branding / Illustration */}
-      <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-950 text-white relative overflow-hidden">
+      <div className="auth-story-panel hidden lg:flex flex-col justify-between p-12 relative overflow-hidden">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white shadow-md">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
             <Globe2 className="h-5 w-5" />
           </div>
-          <span className="font-extrabold text-xl tracking-tight">CommonGround</span>
+          <span className="font-display text-2xl tracking-normal text-foreground">CommonGround</span>
         </div>
 
-        <div className="space-y-6 max-w-lg z-10">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold backdrop-blur-md">
-            Citizen Reputation &amp; Recognition
+        <div className="auth-story-content space-y-6 max-w-lg z-10">
+          <div className="eyebrow inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5">
+            A stronger neighborhood starts here
           </div>
-          <h2 className="text-3xl font-extrabold leading-snug">
-            Earn reputation by identifying challenges and proposing winning solutions.
+          <h2 className="font-display text-3xl leading-snug text-foreground">
+            Turn the things you care about into work you can do together.
           </h2>
-          <div className="space-y-2 text-sm text-indigo-200">
+          <div className="space-y-2 text-sm text-muted-foreground">
             <p>✓ +10 points when your challenge hits 10 community supports</p>
             <p>✓ +5 points per solution upvote</p>
             <p>✓ +50 points when your solution is accepted by the challenge owner</p>
           </div>
         </div>
 
-        <div className="text-xs text-indigo-300">
+        <div className="text-xs text-muted-foreground">
           Built for civil dialogue and real action.
         </div>
       </div>

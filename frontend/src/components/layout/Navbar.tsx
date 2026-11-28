@@ -85,21 +85,22 @@ export const Navbar: React.FC = () => {
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border/80 bg-background/80 backdrop-blur-md">
-      <div className="container flex h-16 items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 w-full border-b border-border/70 bg-background/90 backdrop-blur-xl">
+      <div className="container flex h-[4.5rem] items-center justify-between gap-4">
         {/* Brand Logo */}
         <div className="flex items-center gap-6">
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white shadow-md shadow-primary/25 transition-transform group-hover:scale-105">
-              <Globe2 className="h-5 w-5" />
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform group-hover:-rotate-6">
+              <Globe2 className="h-[18px] w-[18px]" />
+              <span className="absolute -right-0.5 -bottom-0.5 h-3 w-3 rounded-full border-2 border-background bg-accent" />
             </div>
-            <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-primary to-indigo-600 bg-clip-text text-transparent">
+            <span className="font-display text-[1.35rem] tracking-normal text-foreground">
               CommonGround
             </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-1 border-l border-border/80 pl-5 ml-1">
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive = location.pathname === link.path;
@@ -107,10 +108,10 @@ export const Navbar: React.FC = () => {
                 <Link
                   key={link.path}
                   to={link.path}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
+                  className={`relative flex items-center gap-2 px-3 py-2 text-[13px] transition-colors ${
                     isActive
-                      ? 'bg-muted text-primary font-semibold'
-                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                      ? 'text-primary font-bold after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:bg-accent after:content-[""]'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -133,7 +134,7 @@ export const Navbar: React.FC = () => {
               onChange={(e) => setQuickSearch(e.target.value)}
               placeholder="Search challenges..."
               aria-label="Search challenges"
-              className="h-9 w-52 xl:w-64 rounded-xl border border-border/80 bg-muted/40 pl-8 pr-12 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-background transition-all"
+              className="h-9 w-52 xl:w-64 rounded-full border border-border/80 bg-card/80 pl-8 pr-12 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:bg-card transition-all"
             />
             <kbd className="pointer-events-none absolute right-2.5 hidden xl:inline-flex h-5 items-center rounded border border-border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
               /
@@ -142,7 +143,7 @@ export const Navbar: React.FC = () => {
 
           {/* Create Challenge Button */}
           <Link to="/challenges/new" className="hidden sm:inline-flex">
-            <Button size="sm" variant="cta" className="gap-2 shadow-sm rounded-xl">
+            <Button size="sm" variant="cta" className="gap-2 rounded-full px-4">
               <PlusCircle className="h-4 w-4" />
               <span>Post Challenge</span>
             </Button>
@@ -153,7 +154,7 @@ export const Navbar: React.FC = () => {
             type="button"
             onClick={toggleTheme}
             aria-label="Toggle theme"
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
           >
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </button>

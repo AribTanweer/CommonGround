@@ -51,10 +51,13 @@ export const Login: React.FC = () => {
       });
       navigate(from, { replace: true });
     } catch (err) {
-      const { summary } = extractApiError(
-        err,
-        'Invalid username/email or password. Please try again.'
-      );
+      const hasResponse = Boolean((err as { response?: unknown } | null)?.response);
+      const status = (err as { response?: { status?: number } } | null)?.response?.status;
+      const summary = !hasResponse
+        ? 'Unable to reach the sign-in service. Check your connection and try again.'
+        : status === 401
+          ? 'Incorrect username/email or password. Please try again.'
+          : extractApiError(err, 'We could not sign you in. Please try again.').summary;
       setError(summary);
     } finally {
       setLoading(false);
@@ -167,28 +170,28 @@ export const Login: React.FC = () => {
       </div>
 
       {/* Right side: Branding / Illustration */}
-      <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-950 text-white relative overflow-hidden">
+      <div className="auth-story-panel hidden lg:flex flex-col justify-between p-12 relative overflow-hidden">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white shadow-md">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
             <Globe2 className="h-5 w-5" />
           </div>
-          <span className="font-extrabold text-xl tracking-tight">CommonGround</span>
+          <span className="font-display text-2xl tracking-normal text-foreground">CommonGround</span>
         </div>
 
-        <div className="space-y-6 max-w-lg z-10">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold backdrop-blur-md">
-            Community-Powered Impact
+        <div className="auth-story-content space-y-6 max-w-lg z-10">
+          <div className="eyebrow inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5">
+            Community-powered impact
           </div>
-          <blockquote className="text-2xl font-semibold leading-relaxed">
+          <blockquote className="font-display text-3xl leading-snug text-foreground">
             &ldquo;When everyday citizens have a structured way to identify challenges and propose concrete solutions, cities transform from the inside out.&rdquo;
           </blockquote>
           <div>
-            <p className="font-bold">Collaborative Civic Platform</p>
-            <p className="text-sm text-indigo-200">CommonGround Ecosystem</p>
+            <p className="font-semibold text-foreground">Collaborative civic platform</p>
+            <p className="text-sm text-muted-foreground">A place to make local change together</p>
           </div>
         </div>
 
-        <div className="text-xs text-indigo-300">
+        <div className="text-xs text-muted-foreground">
           Empowering communities to solve real problems together.
         </div>
       </div>

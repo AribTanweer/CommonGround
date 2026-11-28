@@ -48,11 +48,11 @@ export const Spaces: React.FC = () => {
     });
   };
 
-  return <main className="container max-w-6xl py-10 px-4 space-y-8">
+  return <main className="container max-w-6xl py-12 px-4 space-y-10">
     <header className="max-w-2xl space-y-2">
-      <p className="text-xs font-bold uppercase tracking-widest text-primary">Work together locally</p>
-      <h1 className="text-3xl font-extrabold tracking-tight">Community spaces</h1>
-      <p className="text-sm leading-relaxed text-muted-foreground">Create a neighborhood or organization space to coordinate challenges in context. Public spaces are discoverable; private spaces are visible only to members and invited people.</p>
+      <p className="eyebrow">Work together, close to home</p>
+      <h1 className="font-display text-4xl md:text-5xl leading-tight">Good work starts <em className="text-primary">nearby.</em></h1>
+      <p className="text-sm md:text-base leading-relaxed text-muted-foreground">Create a neighborhood or organization space to coordinate challenges in context. Public spaces are discoverable; private spaces are visible only to members and invited people.</p>
     </header>
 
     {isAuthenticated && invitations.length > 0 && <section className="rounded-2xl border border-primary/25 bg-primary/5 p-5 space-y-3">
@@ -63,9 +63,9 @@ export const Spaces: React.FC = () => {
       </div>)}
     </section>}
 
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px]">
       <section className="space-y-4">
-        <div className="flex items-baseline justify-between"><h2 className="text-xl font-bold">Spaces you can see</h2><span className="text-xs text-muted-foreground">{spaces.length} {spaces.length === 1 ? 'space' : 'spaces'}</span></div>
+        <div className="flex items-baseline justify-between border-b border-border/70 pb-3"><h2 className="font-display text-2xl">Spaces you can see</h2><span className="text-xs text-muted-foreground">{spaces.length} {spaces.length === 1 ? 'space' : 'spaces'}</span></div>
         {isLoading ? <p className="text-sm text-muted-foreground">Loading spaces…</p> : spaces.length === 0 ? <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">No public spaces yet. Start one for your neighborhood or organization.</div> : <div className="grid gap-4 sm:grid-cols-2">
           {spaces.map((space) => <article key={space.id} className="rounded-2xl border border-border/80 bg-card p-5 space-y-4">
             <div className="flex items-start justify-between gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">{space.kind === 'organization' ? <Building2 className="h-5 w-5" /> : <MapPin className="h-5 w-5" />}</div>{space.is_private && <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium"><LockKeyhole className="h-3 w-3" />Private</span>}</div>
@@ -78,7 +78,7 @@ export const Spaces: React.FC = () => {
         </div>}
       </section>
 
-      <aside className="h-fit rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
+      <aside className="h-fit paper-panel p-5">
         <div className="mb-5 flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><Plus className="h-5 w-5" /></div><div><h2 className="font-bold">Create a space</h2><p className="text-xs text-muted-foreground">Start a shared local hub</p></div></div>
         {isAuthenticated ? <form onSubmit={submitSpace} className="space-y-4">
           <div className="space-y-1.5"><Label htmlFor="space-name">Name</Label><Input id="space-name" required maxLength={100} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Eastside Neighbors" /></div>

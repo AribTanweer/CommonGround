@@ -4,7 +4,10 @@ import { PaginatedResponse, ResourceOffer, Solution, SolutionCreatePayload, Solu
 
 const useSolutionList = <T,>(solutionId: number, resource: string) => useQuery({
   queryKey: ['solution-coordination', solutionId, resource],
-  queryFn: async (): Promise<T[]> => (await apiClient.get<T[]>(`/solutions/${solutionId}/${resource}/`)).data,
+  queryFn: async (): Promise<T[]> => {
+    const { data } = await apiClient.get<T[] | PaginatedResponse<T>>(`/solutions/${solutionId}/${resource}/`);
+    return Array.isArray(data) ? data : data.results;
+  },
   enabled: !!solutionId,
 });
 const useSolutionCreate = <T, P>(solutionId: number, resource: string) => {

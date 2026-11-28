@@ -292,7 +292,7 @@ export const ChallengeDetail: React.FC = () => {
   };
 
   return (
-    <div className="container max-w-6xl py-8 px-4 space-y-6">
+    <div className="container case-file-page max-w-6xl py-8 px-4 space-y-6">
       {/* Back button & Breadcrumb */}
       <div className="flex items-center justify-between">
         <Link
@@ -354,7 +354,8 @@ export const ChallengeDetail: React.FC = () => {
         {/* Main Narrative, Solutions & Comments */}
         <div className="lg:col-span-8 space-y-6">
           {/* Header Info */}
-          <div className="space-y-4">
+          <div className="space-y-5">
+            <p className="eyebrow">Community case file</p>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className={`text-xs font-semibold ${categoryColor}`}>
                 {categoryName}
@@ -380,12 +381,12 @@ export const ChallengeDetail: React.FC = () => {
               )}
             </div>
 
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground leading-tight">
+            <h1 className="font-display text-4xl md:text-5xl leading-[1.08] text-foreground">
               {challenge.title}
             </h1>
 
             {/* Author bar */}
-            <div className="flex items-center gap-3 py-3 border-y border-border/70">
+            <div className="flex items-center gap-3 py-4 border-y border-border/70">
               <Avatar className="h-10 w-10 ring-2 ring-border">
                 <AvatarImage src={challenge.author?.avatar || undefined} />
                 <AvatarFallback className="bg-primary/10 text-primary font-bold">
@@ -430,8 +431,9 @@ export const ChallengeDetail: React.FC = () => {
           )}
 
           {/* Challenge Description */}
-          <div className="rounded-2xl border border-border/80 bg-card p-6 md:p-8 shadow-sm space-y-4">
-            <h2 className="text-xl font-bold text-foreground">Challenge Overview</h2>
+          <div className="paper-panel p-6 md:p-8 space-y-4">
+            <p className="eyebrow">The situation</p>
+            <h2 className="font-display text-2xl text-foreground">Challenge overview</h2>
             <div className="text-base text-foreground/90 whitespace-pre-line leading-relaxed">
               {challenge.description}
             </div>
